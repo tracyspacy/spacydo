@@ -1,7 +1,12 @@
 # spacydo - task engine virtual machine
 
-Concept:
-Minimal task model + programmable behaviour.
+### Why?
+
+Imagine a simple todo app with just 4 CRUD primitives (create, read, update, delete), yet it has more features than prominent task management apps.
+
+Spacydo makes this possible because tasks contain executable code. This means a minimal client with 4 primitive functions can have unlimited features - each task programs its own behavior.
+
+##### Concept:Minimal task model + programmable behaviour.
 
 While the instruction set is minimal, it already demonstrates powerful programmable functionality. Not only can basic task creation, deletion, and filtering be unique or customized, tasks can have their own executable instructions, enabling programmable behavior for each task:
 - filtering tasks based on conditions
@@ -19,9 +24,9 @@ PUSH_STRING TASK1 PUSH_STATUS 0  PUSH_CALLDATA [ ] T_CREATE
 Task that create a subtask when called:
 
 ```PUSH_STRING Parent PUSH_STATUS 0 \
-               PUSH_CALLDATA [ PUSH_STRING Child PUSH_STATUS 0 PUSH_CALLDATA [ ] T_CREATE END_CALL ] \
-               T_CREATE \
-               PUSH_U8 0 CALL
+   PUSH_CALLDATA [ PUSH_STRING Child PUSH_STATUS 0 PUSH_CALLDATA [ ] T_CREATE END_CALL ] \
+   T_CREATE \
+   PUSH_U8 0 CALL
 ```
 
 Potentially, a todo client based on spacydo could be extensible through programming rather than constrained by a fixed feature set, allowing developers and users to define task behavior through adding or modifying instructions.
