@@ -12,13 +12,17 @@ While the instruction set is minimal, it already demonstrates powerful programma
 - etc
 
 Creation of simple task without own executable instructions:
-```PUSH_STRING TASK1 PUSH_STATUS 0  PUSH_CALLDATA [ ] T_CREATE```
+```
+PUSH_STRING TASK1 PUSH_STATUS 0  PUSH_CALLDATA [ ] T_CREATE
+```
 
 Task that create a subtask when called:
+
 ```PUSH_STRING Parent PUSH_STATUS 0 \
                PUSH_CALLDATA [ PUSH_STRING Child PUSH_STATUS 0 PUSH_CALLDATA [ ] T_CREATE END_CALL ] \
                T_CREATE \
-               PUSH_U8 0 CALL```
+               PUSH_U8 0 CALL
+```
 
 Potentially, a todo client based on spacydo could be extensible through programming rather than constrained by a fixed feature set, allowing developers and users to define task behavior through adding or modifying instructions.
 
