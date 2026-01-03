@@ -27,9 +27,11 @@ Task that create a subtask when called:
 Potentially, a todo client based on spacydo could be extensible through programming rather than constrained by a fixed feature set, allowing developers and users to define task behavior through adding or modifying instructions.
 
 While it would benefit from a dedicated examples section, the best way to play with it right now is the tests:
-`cargo test`
+```
+cargo test
+```
 
-Instruction set with description is here: opcodes.rs
+Instruction set with description is here: [opcodes.rs](src/bytecode/opcodes.rs)
 
 Current Scope / Known Issues:
 - storage and VM are not thread-safe
