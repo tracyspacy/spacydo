@@ -1,0 +1,14 @@
+[package]
+name = "spacydo"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+serde = { version = "1.0.228", features = ["derive"] }
+bincode = "1.3"
+
+[profile.release]
+debug = true
+
+[dev-dependencies]
+serial_test = "3.2.0"
