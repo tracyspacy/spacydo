@@ -88,6 +88,8 @@ pub fn disassemble(
             DUP => result.push_str("DUP "),
             EQ => result.push_str("EQ "),
             NEQ => result.push_str("NEQ "),
+            LT => result.push_str("LT "),
+            GT => result.push_str("GT "),
             _ => {}
         }
     }

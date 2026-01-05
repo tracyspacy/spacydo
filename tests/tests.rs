@@ -67,6 +67,24 @@ fn test_neq_true() {
 }
 
 #[test]
+#[serial]
+fn test_lt_true() {
+    clear_storage();
+    let mut vm = VM::init("PUSH_U8 0 PUSH_U64 1 LT").unwrap();
+    let stack = vm.run().unwrap();
+    assert_eq!(stack, vec![1]);
+}
+
+#[test]
+#[serial]
+fn test_gt_true() {
+    clear_storage();
+    let mut vm = VM::init("PUSH_U8 1 PUSH_U64 0 GT").unwrap();
+    let stack = vm.run().unwrap();
+    assert_eq!(stack, vec![1]);
+}
+
+#[test]
 #[serial] //?
 fn test_drop_if_true() {
     let mut vm = VM::init("PUSH_U64 999 PUSH_U64 1 DROP_IF").unwrap();

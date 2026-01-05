@@ -28,6 +28,8 @@ comment: there is [task0,task1,task2..] - PUSH_U64 1 T_DELETE -> tasks_vm in sto
 ### LOGICAL
 EQ - pop right -> pop left -> push True if equal or False if not
 NEQ - pop right -> pop left -> push True if not equal or False if equal
+LT - pop right -> pop left -> push True if left is less than right
+GT - pop right -> pop left -> push True if left is greater that right
 DROP_IF - pop condition (TRUE/FALSE) -> pop from stack if TRUE
 
 ### STORAGE
@@ -76,3 +78,5 @@ pub const DUP: u8 = 0x13;
 //
 pub const EQ: u8 = 0x14; //compares 2 element on stack and pushes either true or false, format [value,reference value]
 pub const NEQ: u8 = 0x15;
+pub const LT: u8 = 0x16; // "less than" - [left,right] returns true only if left is less than right  
+pub const GT: u8 = 0x17; // "greater than" - [left,right] returns true only if left is greater than right

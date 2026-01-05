@@ -195,6 +195,18 @@ impl VM {
                     push_stack(&mut self.stack, if left != right { TRUE } else { FALSE })?;
                 }
 
+                LT => {
+                    let right = pop_stack(&mut self.stack)?;
+                    let left = pop_stack(&mut self.stack)?;
+                    push_stack(&mut self.stack, if left < right { TRUE } else { FALSE })?;
+                }
+
+                GT => {
+                    let right = pop_stack(&mut self.stack)?;
+                    let left = pop_stack(&mut self.stack)?;
+                    push_stack(&mut self.stack, if left > right { TRUE } else { FALSE })?;
+                }
+
                 //drops if true
                 DROP_IF => {
                     let condition = pop_stack(&mut self.stack)?;

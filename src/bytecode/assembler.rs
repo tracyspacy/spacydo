@@ -156,6 +156,12 @@ pub fn assemble(
             "NEQ" => {
                 bytecode.push(NEQ);
             }
+            "LT" => {
+                bytecode.push(LT);
+            }
+            "GT" => {
+                bytecode.push(GT);
+            }
             _ => {
                 return Err(VMError::UnknownOpcode {
                     opcode: token.to_string(),
