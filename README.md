@@ -26,7 +26,7 @@ Task that create a subtask when called:
 ```PUSH_STRING Parent PUSH_STATUS 0 \
    PUSH_CALLDATA [ PUSH_STRING Child PUSH_STATUS 0 PUSH_CALLDATA [ ] T_CREATE END_CALL ] \
    T_CREATE \
-   PUSH_U8 0 CALL
+   PUSH_U32 0 CALL
 ```
 
 Potentially, a todo client based on spacydo could be extensible through programming rather than constrained by a fixed feature set, allowing developers and users to define task behavior through adding or modifying instructions.
@@ -36,9 +36,34 @@ While it would benefit from a dedicated examples section, the best way to play w
 cargo test
 ```
 
-Instruction set with description is here: [opcodes.rs](src/bytecode/opcodes.rs)
+### Recent updates:
+- VM now uses NaN-boxing technique - see [values.rs](src/values.rs)
+- All stack values are 64-bit (`u64`), but they encode 5 distinct types:
+  - Boolean (`TRUE_VAL`, `FALSE_VAL`)
+  - `STRING_VAL`
+  - `CALLDATA_VAL` 
+  - `U32_VAL` (replaces the previous `U8`/`U64`)  
+- `PUSH_U8` and `PUSH_U64` replaced with single `PUSH_U32`
+- Added `TypeMismatch` and `InvalidType` errors for tagged value validation
+- new tests added
 
-Current Scope / Known Issues:
+
+
+**Instruction set with description is here: [opcodes.rs](src/bytecode/opcodes.rs)**
+
+**Instruction categories:**
+
+**Stack Operations**: `PUSH_U32`, `PUSH_STRING`, `PUSH_CALLDATA`, `DUP`, `DROP_IF`
+
+**Task Operations**: `T_CREATE`, `T_GET_FIELD`, `T_SET_FIELD`, `T_DELETE`
+
+**Storage Operations**: `S_SAVE`, `S_LEN`
+
+**Control Flow**: `DO`, `LOOP`, `LOOP_INDEX`, `CALL`, `END_CALL`
+
+**Comparison**: `EQ`, `NEQ`, `LT`, `GT`
+
+### Current Scope / Known Issues:
 - storage and VM are not thread-safe
 - nested loops are not safe
 - execution frame has no specified limit
