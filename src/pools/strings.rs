@@ -3,19 +3,19 @@ use std::collections::HashMap;
 
 #[derive(Default, Debug)]
 pub struct StringPool {
-    map: HashMap<Box<str>, usize>,
+    map: HashMap<Box<str>, u32>,
     vec: Vec<Box<str>>,
 }
 
 impl StringPool {
-    pub(crate) fn intern_string(&mut self, s: String) -> usize {
+    pub(crate) fn intern_string(&mut self, s: String) -> u32 {
         // Check for dup
         if let Some(&idx) = self.map.get(s.as_str()) {
             return idx;
         }
 
         // probably use box:: leak and 'static
-        let idx = self.vec.len();
+        let idx = self.vec.len() as u32;
         let boxed: Box<str> = s.into_boxed_str();
         self.map.insert(boxed.clone(), idx);
         self.vec.push(boxed);

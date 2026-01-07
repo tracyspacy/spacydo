@@ -2,8 +2,8 @@
 ## Instruction Set
 
 ### STACK
-PUSH_U8 <u8> - Push u8 value
-PUSH_U64 <u64> - Push u64 value
+
+PUSH_U32 <u32> - Push u32 value
 PUSH_STRING <String> - Push String value
 PUSH_STATUS <u8> - Push status value: 0-not complete 1 - in progress 2 -complete
 PUSH_TASK_FIELD <u8> - Push task field value: 0 - title 1 -status 2- instructions
@@ -51,8 +51,8 @@ END_CALL (returns to main context) - pop current frame from CALL_STACK (task ins
 example: PUSH_U64 0 DUP CALL (execute task 0 instructions)
 */
 
-pub const PUSH_U8: u8 = 0x00; // +1 byte value
-pub const PUSH_U64: u8 = 0x01; // +8 bytes value
+//pub const PUSH_U8: u8 = 0x00; // +1 byte value
+pub const PUSH_U32: u8 = 0x01; // +8 bytes value
 pub const PUSH_STRING: u8 = 0x02; // +8 bytes value -stringpool index u64
 pub const PUSH_STATUS: u8 = 0x03; // +1 byte value
 pub const PUSH_CALLDATA: u8 = 0x04; // +8 bytes value -instructionpool index u64 ?
@@ -78,5 +78,5 @@ pub const DUP: u8 = 0x13;
 //
 pub const EQ: u8 = 0x14; //compares 2 element on stack and pushes either true or false, format [value,reference value]
 pub const NEQ: u8 = 0x15;
-pub const LT: u8 = 0x16; // "less than" - [left,right] returns true only if left is less than right  
+pub const LT: u8 = 0x16; // "less than" - [left,right] returns true only if left is less than right
 pub const GT: u8 = 0x17; // "greater than" - [left,right] returns true only if left is greater than right

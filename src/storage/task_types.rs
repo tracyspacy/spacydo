@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Task {
-    pub id: u64,
+    pub id: u32,
     pub title: String,
     pub status: TaskStatus,
     pub instructions: String,
@@ -13,10 +13,10 @@ pub struct Task {
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub(crate) struct TaskVM {
-    pub id: u64,
-    pub title: u64,
+    pub id: u32,
+    pub title: u32,
     pub status: TaskStatus,
-    pub instructions_ref: u64,
+    pub instructions_ref: u32,
 }
 impl TaskVM {
     pub(crate) fn from_task(
@@ -31,7 +31,7 @@ impl TaskVM {
 
         Ok(Self {
             id: task.id,
-            title: title_idx as u64,
+            title: title_idx as u32,
             status: task.status,
             instructions_ref: inst_ref,
         })
@@ -60,10 +60,10 @@ pub enum TaskStatus {
     Complete = 2,
 }
 
-impl TryFrom<u8> for TaskStatus {
+impl TryFrom<u32> for TaskStatus {
     type Error = VMError;
 
-    fn try_from(v: u8) -> Result<Self, Self::Error> {
+    fn try_from(v: u32) -> Result<Self, Self::Error> {
         match v {
             0 => Ok(TaskStatus::NotComplete),
             1 => Ok(TaskStatus::InProgress),
@@ -80,10 +80,10 @@ pub enum TaskField {
     Instructions = 2,
 }
 
-impl TryFrom<u8> for TaskField {
+impl TryFrom<u32> for TaskField {
     type Error = VMError;
 
-    fn try_from(v: u8) -> Result<Self, Self::Error> {
+    fn try_from(v: u32) -> Result<Self, Self::Error> {
         match v {
             0 => Ok(TaskField::Title),
             1 => Ok(TaskField::Status),

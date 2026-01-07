@@ -19,25 +19,19 @@ pub fn disassemble(
         pc += 1;
 
         match op {
-            PUSH_U8 => {
-                result.push_str("PUSH_U8 ");
-                let v = prepare_u8(bytecode, pc)?;
+            PUSH_U32 => {
+                result.push_str("PUSH_U32 ");
+                let v = prepare_u32_from_be_checked(bytecode, pc)?; // change?
                 write!(&mut result, "{} ", v).map_err(|_| VMError::WriteError)?;
-                pc += 1;
-            }
-            PUSH_U64 => {
-                result.push_str("PUSH_U64 ");
-                let v = prepare_u64_from_be_checked(bytecode, pc)?;
-                write!(&mut result, "{} ", v).map_err(|_| VMError::WriteError)?;
-                pc += 8;
+                pc += 4;
             }
             PUSH_STRING => {
                 result.push_str("PUSH_STRING ");
-                let idx = prepare_u64_from_be_checked(bytecode, pc)? as usize;
+                let idx = prepare_u32_from_be_checked(bytecode, pc)? as usize;
                 let s = string_pool.resolve(idx)?;
                 result.push_str(s);
                 result.push(' ');
-                pc += 8;
+                pc += 4;
             }
             PUSH_STATUS => {
                 result.push_str("PUSH_STATUS ");
@@ -57,8 +51,8 @@ pub fn disassemble(
             }
             PUSH_CALLDATA => {
                 result.push_str("PUSH_CALLDATA ");
-                let idx = prepare_u64_from_be_checked(bytecode, pc)? as usize;
-                pc += 8;
+                let idx = prepare_u32_from_be_checked(bytecode, pc)? as usize;
+                pc += 4;
                 //check logic
                 let inner: &[u8] = if idx < instructions_pool.len() {
                     instructions_pool.get(idx)?

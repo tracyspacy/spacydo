@@ -3,19 +3,17 @@ use crate::bytecode::{assembler::assemble, helpers::*, opcodes::*};
 use crate::errors::VMResult;
 use crate::pools::{InstructionsPool, StringPool};
 use crate::storage::{storage::Storage, task_types::*};
-
-const TRUE: u64 = 1; //move to constants.rs?
-const FALSE: u64 = 0; //move to constants.rs?
+use crate::values::*;
 
 #[derive(Debug, Clone, Copy)]
 struct InstructionsFrame {
-    instructions_ref: u64,
+    instructions_ref: u32,
     pc: usize,
 }
 
 #[derive(Debug)]
 pub struct VM {
-    stack: Vec<u64>,
+    stack: Vec<Value>,
     control_stack: Vec<u64>, //loops limit and index
     storage: Storage,
     pool: StringPool,
@@ -49,9 +47,9 @@ impl VM {
         })
     }
 
-    pub fn print_task(&self, v: u64) -> VMResult<Task> {
+    pub fn print_task(&self, id: u32) -> VMResult<Task> {
         self.storage
-            .resolve_task(v, &self.pool, &self.instructions_pool)
+            .resolve_task(id, &self.pool, &self.instructions_pool)
     }
 
     pub fn run(&mut self) -> VMResult<Vec<u64>> {
@@ -61,32 +59,38 @@ impl VM {
         let mut pc = self.call_stack[frame_idx].pc;
         let mut instructions = self.instructions_pool.get(instructions_ref as usize)?;
         while let Some(&op) = instructions.get(pc) {
-            // println!("After {:?}: stack = {:?}", op, self.stack);
+            //println!("After {:?}: stack = {:?}", op, self.stack);
             pc += 1;
             //dbg!(&self.stack.len());
             match op {
-                PUSH_U8 => {
-                    //push u8 on stack
-                    push_stack(&mut self.stack, instructions[pc] as u64)?; //safer get fn
-                    pc += 1;
+                PUSH_U32 => {
+                    let val = prepare_u32_from_be_checked(instructions, pc)?;
+                    push_stack(&mut self.stack, to_u32_val(val))?;
+                    pc += 4; //magic number
                 }
-                PUSH_U64 | PUSH_STRING | PUSH_CALLDATA => {
-                    //push u64 on stack
-                    let val = prepare_u64_from_be_checked(instructions, pc)?;
-                    push_stack(&mut self.stack, val)?;
-                    pc += 8; //magic number
+                PUSH_STRING => {
+                    let val = prepare_u32_from_be_checked(instructions, pc)?;
+                    push_stack(&mut self.stack, to_string_val(val))?;
+                    pc += 4; //magic number
+                }
+                PUSH_CALLDATA => {
+                    let val = prepare_u32_from_be_checked(instructions, pc)?;
+                    push_stack(&mut self.stack, to_calldata_val(val))?;
+                    pc += 4; //magic number
                 }
 
                 PUSH_STATUS | PUSH_TASK_FIELD => {
-                    push_stack(&mut self.stack, instructions[pc] as u64)?; //safer get fn
+                    let val = instructions[pc] as u32;
+                    push_stack(&mut self.stack, to_u32_val(val))?; //safer get fn
                     pc += 1;
                 }
 
                 T_CREATE => {
-                    let instructions_ref = pop_stack(&mut self.stack)?;
-                    let raw_status = pop_stack(&mut self.stack)? as u8;
+                    let instructions_ref = to_u32(pop_stack(&mut self.stack)?);
+                    let raw_status = to_u32(pop_stack(&mut self.stack)?);
                     let status = TaskStatus::try_from(raw_status)?;
-                    let title = pop_stack(&mut self.stack)?;
+
+                    let title = to_u32(pop_stack(&mut self.stack)?);
                     let id = self.storage.next_id;
 
                     let task = TaskVM {
@@ -100,16 +104,18 @@ impl VM {
                 }
 
                 T_GET_FIELD => {
-                    let field_byte = pop_stack(&mut self.stack)? as u8;
+                    let field_byte = to_u32(pop_stack(&mut self.stack)?);
                     let field = TaskField::try_from(field_byte)?;
-                    let id = pop_stack(&mut self.stack)?;
+                    let id = to_u32(pop_stack(&mut self.stack)?);
 
                     let task = &self.storage.get(id)?; // handle error
                     match field {
-                        TaskField::Title => push_stack(&mut self.stack, task.title)?,
-                        TaskField::Status => push_stack(&mut self.stack, task.status as u64)?,
+                        TaskField::Title => push_stack(&mut self.stack, to_string_val(task.title))?,
+                        TaskField::Status => {
+                            push_stack(&mut self.stack, to_u32_val(task.status as u32))?
+                        }
                         TaskField::Instructions => {
-                            push_stack(&mut self.stack, task.instructions_ref)?
+                            push_stack(&mut self.stack, to_calldata_val(task.instructions_ref))?
                         }
                     }
                 }
@@ -119,36 +125,36 @@ impl VM {
                 // PUSH_TASK_FIELD 1 - push task field! to change
                 // T_SET_FIELD
                 T_SET_FIELD => {
-                    let field_byte = pop_stack(&mut self.stack)? as u8;
+                    let field_byte = to_u32(pop_stack(&mut self.stack)?);
                     let field = TaskField::try_from(field_byte)?;
-                    let id = pop_stack(&mut self.stack)?;
+                    let id = to_u32(pop_stack(&mut self.stack)?);
 
                     let task = &mut self.storage.get_mut(id)?;
                     match field {
-                        TaskField::Title => task.title = pop_stack(&mut self.stack)?,
+                        TaskField::Title => task.title = to_u32(pop_stack(&mut self.stack)?),
                         TaskField::Status => {
-                            let v = pop_stack(&mut self.stack)? as u8;
+                            let v = to_u32(pop_stack(&mut self.stack)?);
                             task.status = TaskStatus::try_from(v)?;
                         }
                         TaskField::Instructions => {
-                            task.instructions_ref = pop_stack(&mut self.stack)?;
+                            task.instructions_ref = to_u32(pop_stack(&mut self.stack)?);
                         }
                     }
                     // push_stack(&mut self.stack, id)?;
                 }
                 T_DELETE => {
-                    let id = pop_stack(&mut self.stack)?;
+                    let id = to_u32(pop_stack(&mut self.stack)?);
                     self.storage.delete(id)?;
                 }
                 S_SAVE => self.storage.save(&self.pool, &self.instructions_pool)?,
-                S_LEN => push_stack(&mut self.stack, self.storage.len() as u64)?,
+                S_LEN => push_stack(&mut self.stack, to_u32_val(self.storage.len() as u32))?,
 
                 DO => {
-                    let index = pop_stack(&mut self.stack)?;
-                    let limit = pop_stack(&mut self.stack)?;
+                    let index = to_u32(pop_stack(&mut self.stack)?);
+                    let limit = to_u32(pop_stack(&mut self.stack)?);
                     self.control_stack.push(pc as u64);
-                    self.control_stack.push(index);
-                    self.control_stack.push(limit);
+                    self.control_stack.push(index as u64);
+                    self.control_stack.push(limit as u64);
                 }
                 LOOP => {
                     //dbg!("***L**O**O**P***{}", &self.stack);
@@ -165,17 +171,19 @@ impl VM {
                         self.control_stack.push(limit);
                     }
                 }
-                LOOP_INDEX => push_stack(
-                    &mut self.stack,
-                    self.control_stack[self.control_stack.len() - 2],
-                )?, // check logic for nested loops
+                LOOP_INDEX => {
+                    let idx = self.control_stack[self.control_stack.len() - 2];
+                    push_stack(&mut self.stack, to_u32_val(idx as u32))?;
+                } // check logic for nested loops
 
                 //remove or repurpose rn it just validates if taskvm exists (relict opcode)
                 S_LOAD => {
+                    /*
                     let index = pop_stack(&mut self.stack)?;
                     if self.storage.exists(index) {
                         push_stack(&mut self.stack, index)?;
                     }
+                    */
                 }
 
                 DUP => {
@@ -186,37 +194,37 @@ impl VM {
                 EQ => {
                     let right = pop_stack(&mut self.stack)?;
                     let left = pop_stack(&mut self.stack)?;
-                    push_stack(&mut self.stack, if left == right { TRUE } else { FALSE })?;
+                    push_stack(&mut self.stack, value_eq(left, right)?)?;
                 }
 
                 NEQ => {
                     let right = pop_stack(&mut self.stack)?;
                     let left = pop_stack(&mut self.stack)?;
-                    push_stack(&mut self.stack, if left != right { TRUE } else { FALSE })?;
+                    push_stack(&mut self.stack, value_neq(left, right)?)?;
                 }
 
                 LT => {
                     let right = pop_stack(&mut self.stack)?;
                     let left = pop_stack(&mut self.stack)?;
-                    push_stack(&mut self.stack, if left < right { TRUE } else { FALSE })?;
+                    push_stack(&mut self.stack, value_cmp(left, right, true)?)?;
                 }
 
                 GT => {
                     let right = pop_stack(&mut self.stack)?;
                     let left = pop_stack(&mut self.stack)?;
-                    push_stack(&mut self.stack, if left > right { TRUE } else { FALSE })?;
+                    push_stack(&mut self.stack, value_cmp(left, right, false)?)?;
                 }
 
                 //drops if true
                 DROP_IF => {
                     let condition = pop_stack(&mut self.stack)?;
-                    if condition == TRUE {
+                    if condition == TRUE_VAL {
                         pop_stack(&mut self.stack)?;
                     }
                 }
 
                 CALL => {
-                    let id = pop_stack(&mut self.stack)?;
+                    let id = to_u32(pop_stack(&mut self.stack)?);
 
                     let task = &self.storage.get(id)?;
 

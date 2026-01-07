@@ -6,10 +6,10 @@ pub struct InstructionsPool {
 }
 
 impl InstructionsPool {
-    pub(crate) fn intern_instructions(&mut self, calldata: Vec<u8>) -> u64 {
+    pub(crate) fn intern_instructions(&mut self, calldata: Vec<u8>) -> u32 {
         let idx = self.instructions.len();
         self.instructions.push(calldata);
-        idx as u64
+        idx as u32
     }
     pub(crate) fn len(&self) -> usize {
         self.instructions.len()

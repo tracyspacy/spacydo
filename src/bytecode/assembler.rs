@@ -23,20 +23,10 @@ pub fn assemble(
 
     while let Some((i, token)) = tokens.next() {
         match token {
-            "PUSH_U8" => {
-                bytecode.push(PUSH_U8);
-                let (pos, text) = next_token(&mut tokens, i, "missing u8")?;
-                let value = text.parse::<u8>().map_err(|_| VMError::InvalidUINT {
-                    command: pos,
-                    value: text.into(),
-                })?;
-
-                bytecode.push(value);
-            }
-            "PUSH_U64" => {
-                bytecode.push(PUSH_U64);
-                let (pos, text) = next_token(&mut tokens, i, "missing u64")?;
-                let value = text.parse::<u64>().map_err(|_| VMError::InvalidUINT {
+            "PUSH_U32" => {
+                bytecode.push(PUSH_U32);
+                let (pos, text) = next_token(&mut tokens, i, "missing u32")?;
+                let value = text.parse::<u32>().map_err(|_| VMError::InvalidUINT {
                     command: pos,
                     value: text.into(),
                 })?;

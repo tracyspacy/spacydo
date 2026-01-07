@@ -7,14 +7,14 @@ use std::fs::File;
 #[derive(Debug)]
 pub(crate) struct Storage {
     tasks_vm: Vec<Option<TaskVM>>,
-    pub next_id: u64,
+    pub next_id: u32,
     alive: usize,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 pub(crate) struct StorageData {
     tasks: Vec<Task>,
-    next_id: u64,
+    next_id: u32,
 }
 
 /// storage is NOT thread-safe!
@@ -41,7 +41,7 @@ impl Storage {
 
     pub(crate) fn resolve_task(
         &self,
-        id: u64,
+        id: u32,
         string_pool: &StringPool,
         instructions_pool: &InstructionsPool,
     ) -> VMResult<Task> {
@@ -94,7 +94,7 @@ impl Storage {
         self.alive += 1;
     }
 
-    pub(crate) fn delete(&mut self, id: u64) -> VMResult<()> {
+    pub(crate) fn delete(&mut self, id: u32) -> VMResult<()> {
         let idx = id as usize;
 
         if let Some(task_vm) = self.tasks_vm.get_mut(idx)
@@ -107,14 +107,14 @@ impl Storage {
         Err(VMError::TaskNotFound(id))
     }
 
-    pub(crate) fn get(&self, id: u64) -> VMResult<&TaskVM> {
+    pub(crate) fn get(&self, id: u32) -> VMResult<&TaskVM> {
         self.tasks_vm
             .get(id as usize)
             .and_then(|opt| opt.as_ref())
             .ok_or(VMError::TaskNotFound(id))
     }
 
-    pub(crate) fn get_mut(&mut self, id: u64) -> VMResult<&mut TaskVM> {
+    pub(crate) fn get_mut(&mut self, id: u32) -> VMResult<&mut TaskVM> {
         self.tasks_vm
             .get_mut(id as usize)
             .and_then(|opt| opt.as_mut())
@@ -124,6 +124,7 @@ impl Storage {
     pub(crate) fn exists(&self, id: u64) -> bool {
         matches!(self.tasks_vm.get(id as usize), Some(Some(_)))
     }
+
     pub(crate) fn len(&self) -> usize {
         self.alive
     }

@@ -1,5 +1,5 @@
 use serial_test::serial;
-use spacydo::{Task, TaskStatus, VM, VMError};
+use spacydo::{TRUE_VAL, Task, TaskStatus, VM, VMError, to_u32, to_u32_val};
 use std::fs;
 
 fn clear_storage() {
@@ -8,18 +8,10 @@ fn clear_storage() {
 
 #[test]
 #[serial] //?
-fn test_push_u8() {
-    let mut vm = VM::init("PUSH_U8 10").unwrap();
+fn test_push_u32() {
+    let mut vm = VM::init("PUSH_U32 1234567890").unwrap();
     let stack = vm.run().unwrap();
-    assert_eq!(stack, vec![10]);
-}
-
-#[test]
-#[serial] //?
-fn test_push_u64() {
-    let mut vm = VM::init("PUSH_U64 1234567890").unwrap();
-    let stack = vm.run().unwrap();
-    assert_eq!(stack, vec![1234567890]);
+    assert_eq!(to_u32(stack[0]), 1234567890);
 }
 
 #[test]
@@ -34,11 +26,22 @@ fn test_string_interning_reuses_index() {
 }
 
 #[test]
+#[serial]
+fn test_push_string() {
+    clear_storage();
+    let mut vm = VM::init("PUSH_STRING hello").unwrap();
+    let stack = vm.run().unwrap();
+    //first string internes to 0 index
+    assert_eq!(to_u32(stack[0]), 0);
+}
+
+#[test]
 #[serial] //?
 fn test_dup() {
-    let mut vm = VM::init("PUSH_U64 100 DUP").unwrap();
+    let mut vm = VM::init("PUSH_U32 100 DUP").unwrap();
     let stack = vm.run().unwrap();
-    assert_eq!(stack, vec![100, 100]);
+    let untagged_stack: Vec<u32> = stack.iter().map(|v| to_u32(*v)).collect();
+    assert_eq!(untagged_stack, vec![100, 100]);
 }
 
 #[test]
@@ -52,51 +55,52 @@ fn test_dup_stack_underflow() {
 #[test]
 #[serial] //?
 fn test_eq_true() {
-    let mut vm = VM::init("PUSH_U64 161 PUSH_U64 161 EQ").unwrap();
+    let mut vm = VM::init("PUSH_U32 161 PUSH_U32 161 EQ").unwrap();
     let stack = vm.run().unwrap();
-    assert_eq!(stack, vec![1]); // TRUE
+    assert_eq!(stack, vec![TRUE_VAL]); // TRUE - think hot to display simplier like 1 and 0 again
 }
 
 #[test]
 #[serial]
 fn test_neq_true() {
     clear_storage();
-    let mut vm = VM::init("PUSH_U64 162 PUSH_U64 222 NEQ").unwrap();
+    let mut vm = VM::init("PUSH_U32 162 PUSH_U32 222 NEQ").unwrap();
     let stack = vm.run().unwrap();
-    assert_eq!(stack, vec![1]);
+    assert_eq!(stack, vec![TRUE_VAL]);
 }
 
 #[test]
 #[serial]
 fn test_lt_true() {
     clear_storage();
-    let mut vm = VM::init("PUSH_U8 0 PUSH_U64 1 LT").unwrap();
+    let mut vm = VM::init("PUSH_U32 0 PUSH_U32 1 LT").unwrap();
     let stack = vm.run().unwrap();
-    assert_eq!(stack, vec![1]);
+    assert_eq!(stack, vec![TRUE_VAL]);
 }
 
 #[test]
 #[serial]
 fn test_gt_true() {
     clear_storage();
-    let mut vm = VM::init("PUSH_U8 1 PUSH_U64 0 GT").unwrap();
+    let mut vm = VM::init("PUSH_U32 1 PUSH_U32 0 GT").unwrap();
     let stack = vm.run().unwrap();
-    assert_eq!(stack, vec![1]);
+    assert_eq!(stack, vec![TRUE_VAL]);
 }
 
 #[test]
 #[serial] //?
 fn test_drop_if_true() {
-    let mut vm = VM::init("PUSH_U64 999 PUSH_U64 1 DROP_IF").unwrap();
+    let mut vm = VM::init("PUSH_U32 999 PUSH_U32 2 PUSH_U32 1 GT DROP_IF").unwrap();
     let stack = vm.run().unwrap();
     assert_eq!(stack, vec![]); // 999 was dropped
 }
+
 #[test]
 #[serial] //?
 fn test_drop_if_false() {
-    let mut vm = VM::init("PUSH_U64 999 PUSH_U64 0 DROP_IF").unwrap();
+    let mut vm = VM::init("PUSH_U32 999 PUSH_U32 2 PUSH_U32 3 GT DROP_IF").unwrap();
     let stack = vm.run().unwrap();
-    assert_eq!(stack, vec![999]); // 999 kept
+    assert_eq!(stack, vec![to_u32_val(999)]); // nan boxed 999 kept
 }
 
 #[test]
@@ -123,7 +127,7 @@ fn test_create_task() {
 fn test_get_task_field_title() {
     clear_storage();
     let ops = "PUSH_STRING MyTask1 PUSH_STATUS 2 PUSH_CALLDATA [ ] T_CREATE \
-                   PUSH_U64 0 PUSH_TASK_FIELD 0 T_GET_FIELD";
+                   PUSH_U32 0 PUSH_TASK_FIELD 0 T_GET_FIELD";
     let mut vm = VM::init(ops).unwrap();
     let stack = vm.run().unwrap();
 
@@ -138,11 +142,11 @@ fn test_get_task_field_title() {
 fn test_get_task_field_status() {
     clear_storage();
     let ops = "PUSH_STRING MyTask1 PUSH_STATUS 0 PUSH_CALLDATA [ ] T_CREATE \
-                   PUSH_U64 0 PUSH_TASK_FIELD 1 T_GET_FIELD";
+                   PUSH_U32 0 PUSH_TASK_FIELD 1 T_GET_FIELD";
     let mut vm = VM::init(ops).unwrap();
     let stack = vm.run().unwrap();
 
-    assert_eq!(stack, vec![0]);
+    assert_eq!(stack, vec![to_u32_val(0)]);
     let test_task = vm.print_task(0).unwrap();
     assert_eq!(test_task.status, TaskStatus::NotComplete); //same as previous NotComplete == 0
 }
@@ -152,11 +156,11 @@ fn test_get_task_field_status() {
 fn test_set_task_field_status() {
     clear_storage();
     let ops = "PUSH_STRING TestTask PUSH_STATUS 0 PUSH_CALLDATA [ ] T_CREATE \
-                   PUSH_STATUS 2 PUSH_U64 0 PUSH_TASK_FIELD 1 T_SET_FIELD \
-                   PUSH_U64 0 PUSH_TASK_FIELD 1 T_GET_FIELD";
+                   PUSH_STATUS 2 PUSH_U32 0 PUSH_TASK_FIELD 1 T_SET_FIELD \
+                   PUSH_U32 0 PUSH_TASK_FIELD 1 T_GET_FIELD";
     let mut vm = VM::init(ops).unwrap();
     let stack = vm.run().unwrap();
-    assert_eq!(stack, vec![2]);
+    assert_eq!(stack, vec![to_u32_val(2)]);
 }
 
 #[test]
@@ -164,11 +168,11 @@ fn test_set_task_field_status() {
 fn test_delete_task() {
     clear_storage();
     let ops = "PUSH_STRING TaskToDelete PUSH_STATUS 2 PUSH_CALLDATA [ ] T_CREATE S_LEN \
-                   PUSH_U64 0 T_DELETE S_LEN";
+                   PUSH_U32 0 T_DELETE S_LEN";
     let mut vm = VM::init(ops).unwrap();
     let stack = vm.run().unwrap();
 
-    assert_eq!(stack, vec![1, 0]); // 1 task after task create and 0 tasks remain after delete
+    assert_eq!(stack, vec![to_u32_val(1), to_u32_val(0)]); // 1 task after task create and 0 tasks remain after delete
 }
 
 #[test]
@@ -176,12 +180,12 @@ fn test_delete_task() {
 fn test_task_with_simple_calldata() {
     clear_storage();
     let ops = "PUSH_STRING TestTask PUSH_STATUS 2 \
-               PUSH_CALLDATA [ PUSH_U64 42 END_CALL ] T_CREATE \
-               PUSH_U64 0 DUP CALL"; // DUP is to keep task id
+               PUSH_CALLDATA [ PUSH_U32 42 END_CALL ] T_CREATE \
+               PUSH_U32 0 DUP CALL"; // DUP is to keep task id
     let mut vm = VM::init(ops).unwrap();
     let stack = vm.run().unwrap();
 
-    assert_eq!(stack, vec![0, 42]);
+    assert_eq!(stack, vec![to_u32_val(0), to_u32_val(42)]);
 }
 
 //assemble error handling
@@ -189,23 +193,16 @@ fn test_task_with_simple_calldata() {
 #[serial]
 fn test_task_not_found() {
     clear_storage();
-    let mut vm = VM::init("PUSH_U64 99999 PUSH_TASK_FIELD 0 T_GET_FIELD").unwrap();
+    let mut vm = VM::init("PUSH_U32 99999 PUSH_TASK_FIELD 0 T_GET_FIELD").unwrap();
     let result = vm.run();
     assert!(matches!(result, Err(VMError::TaskNotFound(99999))));
 }
 
 #[test]
 #[serial] //?
-fn test_push_u8_overflow() {
-    let err = VM::init("PUSH_U8 256").unwrap_err();
-    let _value = "256".to_string();
-    assert!(matches!(
-        err,
-        VMError::InvalidUINT {
-            command: 1,
-            value: _value
-        }
-    ));
+fn test_push_u32_overflow() {
+    let err = VM::init("PUSH_U32 4294967296").unwrap_err();
+    assert!(matches!(err, VMError::InvalidUINT { .. }));
 }
 
 #[test]
@@ -219,21 +216,20 @@ fn test_empty_instructions() {
 #[serial] //?
 fn test_unknown_opcode() {
     let result = VM::init("INVALID_OP");
-    dbg!(&result);
     assert!(matches!(result, Err(VMError::UnknownOpcode { .. })));
 }
 
 #[test]
 #[serial] //?
-fn test_missing_u64_val() {
-    let result = VM::init("PUSH_U64");
+fn test_missing_u32_val() {
+    let result = VM::init("PUSH_U32");
     assert!(matches!(result, Err(VMError::UnexpectedEOI { .. })));
 }
 
 #[test]
 #[serial] //?
 fn test_malformed_calldata_missing_start_bracket() {
-    let result = VM::init("PUSH_CALLDATA PUSH_U64 1 ");
+    let result = VM::init("PUSH_CALLDATA PUSH_U32 1 ");
     assert!(matches!(
         result,
         Err(VMError::MalformedCalldata {
@@ -246,7 +242,7 @@ fn test_malformed_calldata_missing_start_bracket() {
 #[test]
 #[serial] //?
 fn test_eoi_calldata_missing_end_bracket() {
-    let result = VM::init("PUSH_CALLDATA [ PUSH_U64 1 ");
+    let result = VM::init("PUSH_CALLDATA [ PUSH_U32 1 ");
     assert!(matches!(
         result,
         Err(VMError::UnexpectedEOI {
@@ -270,9 +266,25 @@ fn test_invalid_status() {
 #[serial] //?
 fn test_stack_overflow() {
     //loop 1_000_001 times push 99 - should stack overflow since limit 1 mil
-    let mut vm = VM::init("PUSH_U64 1000001 PUSH_U64 0 DO PUSH_U64 99 LOOP").unwrap();
+    let mut vm = VM::init("PUSH_U32 1000001 PUSH_U32 0 DO PUSH_U32 99 LOOP").unwrap();
     let result = vm.run();
     assert!(matches!(result, Err(VMError::StackOverflow)));
+}
+
+#[test]
+#[serial] //?
+fn test_type_mismatch_eq() {
+    let mut vm = VM::init("PUSH_U32 1 PUSH_STRING aaa EQ").unwrap();
+    let result = vm.run();
+    assert!(matches!(result, Err(VMError::TypeMismatch)));
+}
+
+#[test]
+#[serial] //?
+fn test_invalid_type_lt() {
+    let mut vm = VM::init("PUSH_STRING aa PUSH_STRING aaa LT").unwrap();
+    let result = vm.run();
+    assert!(matches!(result, Err(VMError::InvalidType)));
 }
 
 // complex tests
@@ -283,13 +295,14 @@ fn test_stack_overflow() {
 fn test_conditional_task_filtering() {
     clear_storage();
     let ops = "PUSH_STRING TargetTask PUSH_STATUS 2 PUSH_CALLDATA [ ] T_CREATE \
-                   PUSH_U64 0 DUP PUSH_TASK_FIELD 0 T_GET_FIELD \
+                   PUSH_U32 0 DUP PUSH_TASK_FIELD 0 T_GET_FIELD \
                    PUSH_STRING TargetTask EQ DROP_IF";
     let mut vm = VM::init(ops).unwrap();
     let stack = vm.run().unwrap();
     dbg!(&stack);
     assert_eq!(stack.len(), 0);
 }
+
 // create 3 tasks -> loop over tasks and push index (same as task id since based on s_len) to stack
 #[test]
 #[serial]
@@ -298,11 +311,11 @@ fn test_multiple_tasks_iteration() {
     let ops = "PUSH_STRING A PUSH_STATUS 0 PUSH_CALLDATA [ ] T_CREATE \
                    PUSH_STRING B PUSH_STATUS 0 PUSH_CALLDATA [ ] T_CREATE \
                    PUSH_STRING C PUSH_STATUS 0 PUSH_CALLDATA [ ] T_CREATE \
-                   S_LEN PUSH_U64 0 DO LOOP_INDEX LOOP";
+                   S_LEN PUSH_U32 0 DO LOOP_INDEX LOOP";
     let mut vm = VM::init(ops).unwrap();
     let stack = vm.run().unwrap();
     dbg!(&stack);
-    assert_eq!(stack, vec![0, 1, 2]);
+    assert_eq!(stack, vec![to_u32_val(0), to_u32_val(1), to_u32_val(2)]);
 }
 
 #[test]
@@ -313,15 +326,16 @@ fn test_task_creates_subtask() {
     let ops = "PUSH_STRING Parent PUSH_STATUS 2 \
                PUSH_CALLDATA [ PUSH_STRING Child PUSH_STATUS 0 PUSH_CALLDATA [ ] T_CREATE END_CALL ] \
                T_CREATE \
-               PUSH_U8 0 CALL \
+               PUSH_U32 0 CALL \
                S_LEN";
     let mut vm = VM::init(ops).unwrap();
     let stack = vm.run().unwrap();
     // let task = vm.print_task(1).unwrap();
     // dbg!(&task);
     dbg!(&stack);
-    assert_eq!(stack, vec![2]);
+    assert_eq!(stack, vec![to_u32_val(2)]);
 }
+
 #[test]
 #[serial]
 fn test_save_and_load() {
@@ -338,7 +352,7 @@ fn test_save_and_load() {
     {
         let mut vm = VM::init("S_LEN").unwrap();
         let stack = vm.run().unwrap();
-        assert_eq!(stack, vec![2]);
+        assert_eq!(stack, vec![to_u32_val(2)]);
     }
 }
 
@@ -360,12 +374,12 @@ fn test_delete_complex() {
         let mut vm = VM::init("S_LEN").unwrap();
         let stack = vm.run().unwrap();
 
-        assert_eq!(stack, vec![3]);
+        assert_eq!(stack, vec![to_u32_val(3)]);
     }
 
     {
         //deleting 2nd task
-        let ops_delete = "PUSH_U64 1 T_DELETE S_SAVE";
+        let ops_delete = "PUSH_U32 1 T_DELETE S_SAVE";
         let mut vm = VM::init(ops_delete).unwrap();
         vm.run().unwrap();
         let t0 = vm.print_task(0);

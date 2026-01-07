@@ -1,7 +1,7 @@
 #[derive(Debug, Clone)]
 pub enum VMError {
     // Storage errors
-    TaskNotFound(u64),
+    TaskNotFound(u32),
     StorageWriteError,
     StorageReadError,
 
@@ -19,10 +19,14 @@ pub enum VMError {
     //CallStackOverflow,
     //CallStackUnderflow,
 
+    //tagged values errors
+    TypeMismatch,
+    InvalidType,
+
     // Bytecode errors
     EmptyInstructions,
-    InvalidStatus(u8),
-    InvalidTaskField(u8),
+    InvalidStatus(u32),
+    InvalidTaskField(u32),
     UnexpectedEOB,
     UnexpectedEOI {
         command: usize,

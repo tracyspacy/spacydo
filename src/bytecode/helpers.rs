@@ -1,7 +1,7 @@
 use crate::errors::{VMError, VMResult};
-pub fn prepare_u64_from_be_checked(inst_slice: &[u8], pc: usize) -> VMResult<u64> {
-    Ok(u64::from_be_bytes(
-        inst_slice[pc..pc + 8]
+pub fn prepare_u32_from_be_checked(inst_slice: &[u8], pc: usize) -> VMResult<u32> {
+    Ok(u32::from_be_bytes(
+        inst_slice[pc..pc + 4]
             .try_into()
             .map_err(|_| VMError::UnexpectedEOB)?,
     ))
