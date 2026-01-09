@@ -53,7 +53,7 @@ cargo test
 
 **Instruction categories:**
 
-**Stack Operations**: `PUSH_U32`, `PUSH_STRING`, `PUSH_CALLDATA`, `DUP`, `DROP_IF`
+**Stack Operations**: `PUSH_U32`, `PUSH_STRING`, `PUSH_CALLDATA`, `DUP`, `SWAP`, `DROP_IF`
 
 **Task Operations**: `T_CREATE`, `T_GET_FIELD`, `T_SET_FIELD`, `T_DELETE`
 
