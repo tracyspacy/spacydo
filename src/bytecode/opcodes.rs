@@ -10,6 +10,7 @@ PUSH_TASK_FIELD <u32> - Push task field value: 0 - title 1 -status 2- instructio
 PUSH_CALLDATA <String with format> - Push task own instructions. Should follow format : [ ] - for empty instructions,
 for non empty should end with END_CALL - PUSH_CALLDATA [ PUSH_U64 42 END_CALL ]
 DUP - duplicates last() value on stack
+SWAP - Exchange the top two stack items. [1,2] -> [2,1]
 
 ### TASKs
 T_CREATE - pop instructions reference (CallData) -> pop task status -> pop title -> form TaskVM and adds to Storage (without saving to persistant storage).
@@ -74,8 +75,9 @@ pub const END_CALL: u8 = 0x11;
 pub const DROP_IF: u8 = 0x12; //if last is true drops value
 //
 pub const DUP: u8 = 0x13;
+pub const SWAP: u8 = 0x14;
 //
-pub const EQ: u8 = 0x14; //compares 2 element on stack and pushes either true or false, format [value,reference value]
-pub const NEQ: u8 = 0x15;
-pub const LT: u8 = 0x16; // "less than" - [left,right] returns true only if left is less than right
-pub const GT: u8 = 0x17; // "greater than" - [left,right] returns true only if left is greater than right
+pub const EQ: u8 = 0x15; //compares 2 element on stack and pushes either true or false, format [value,reference value]
+pub const NEQ: u8 = 0x16;
+pub const LT: u8 = 0x17; // "less than" - [left,right] returns true only if left is less than right
+pub const GT: u8 = 0x18; // "greater than" - [left,right] returns true only if left is greater than right

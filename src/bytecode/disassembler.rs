@@ -80,6 +80,7 @@ pub fn disassemble(
             END_CALL => result.push_str("END_CALL "),
             DROP_IF => result.push_str("DROP_IF "),
             DUP => result.push_str("DUP "),
+            SWAP => result.push_str("SWAP "),
             EQ => result.push_str("EQ "),
             NEQ => result.push_str("NEQ "),
             LT => result.push_str("LT "),

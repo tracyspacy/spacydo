@@ -191,6 +191,13 @@ impl VM {
                     push_stack(&mut self.stack, v)?;
                 }
 
+                SWAP => {
+                    let b = pop_stack(&mut self.stack)?;
+                    let a = pop_stack(&mut self.stack)?;
+                    push_stack(&mut self.stack, b)?;
+                    push_stack(&mut self.stack, a)?;
+                }
+
                 EQ => {
                     let right = pop_stack(&mut self.stack)?;
                     let left = pop_stack(&mut self.stack)?;

@@ -140,6 +140,9 @@ pub fn assemble(
             "DUP" => {
                 bytecode.push(DUP);
             }
+            "SWAP" => {
+                bytecode.push(SWAP);
+            }
             "EQ" => {
                 bytecode.push(EQ);
             }

@@ -46,6 +46,15 @@ fn test_dup() {
 
 #[test]
 #[serial] //?
+fn test_swap() {
+    let mut vm = VM::init("PUSH_U32 1 PUSH_U32 2 SWAP").unwrap();
+    let stack = vm.run().unwrap();
+    let untagged_stack: Vec<u32> = stack.iter().map(|v| to_u32(*v)).collect();
+    assert_eq!(untagged_stack, vec![2, 1]);
+}
+
+#[test]
+#[serial] //?
 fn test_dup_stack_underflow() {
     let mut vm = VM::init("DUP").unwrap();
     let result = vm.run();
