@@ -20,7 +20,7 @@ pub fn assemble(
 ) -> VMResult<Vec<u8>> {
     let mut tokens = src.split_whitespace().enumerate();
     let mut bytecode: Vec<u8> = Vec::new();
-
+    let mut jump_dest_stack: Vec<u32> = Vec::new();
     while let Some((i, token)) = tokens.next() {
         match token {
             "PUSH_U32" => {
@@ -56,6 +56,21 @@ pub fn assemble(
                 })?;
                 bytecode.push(value);
             }
+
+            "IF" => {
+                bytecode.push(JUMP_IF_FALSE);
+                jump_dest_stack.push(bytecode.len() as u32);
+                bytecode.extend_from_slice(&0u32.to_be_bytes());
+            }
+            "THEN" => {
+                let jump_dest = jump_dest_stack.pop().ok_or(VMError::MalformedIfThen {
+                    context: ("Missing IF"),
+                })?;
+                let upd_dest = bytecode.len() as u32;
+                bytecode[jump_dest as usize..jump_dest as usize + 4]
+                    .copy_from_slice(&upd_dest.to_be_bytes());
+            }
+
             "PUSH_CALLDATA" => {
                 bytecode.push(PUSH_CALLDATA);
 
@@ -162,5 +177,12 @@ pub fn assemble(
             }
         }
     }
+    // we need to check if there is THEN for each IF : since we pop from jump_dest_stack in THEN case , it should be not emptied in case of missing THEN
+    if !jump_dest_stack.is_empty() {
+        return Err(VMError::MalformedIfThen {
+            context: "Missing THEN",
+        });
+    }
+
     Ok(bytecode)
 }

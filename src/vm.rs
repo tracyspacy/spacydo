@@ -1,5 +1,5 @@
 use crate::VMError;
-use crate::bytecode::{assembler::assemble, helpers::*, opcodes::*};
+use crate::bytecode::{assembler::assemble, disassembler::disassemble, helpers::*, opcodes::*};
 use crate::errors::VMResult;
 use crate::pools::{InstructionsPool, StringPool};
 use crate::storage::{storage::Storage, task_types::*};
@@ -51,9 +51,16 @@ impl VM {
         self.storage
             .resolve_task(id, &self.pool, &self.instructions_pool)
     }
+    // for test purposes, probably remove later
+    pub fn disassemble_bytecode(&self) -> VMResult<String> {
+        let bytecode_ref = self.call_stack[self.call_stack.len() - 1].instructions_ref;
+        let bytecode = self.instructions_pool.get(bytecode_ref as usize)?;
+        disassemble(bytecode, &self.pool, &self.instructions_pool)
+    }
 
     pub fn run(&mut self) -> VMResult<Vec<u64>> {
         //std::vec::Drain<'_, u64>
+        // check this
         let frame_idx = self.call_stack.len() - 1;
         let mut instructions_ref = self.call_stack[frame_idx].instructions_ref;
         let mut pc = self.call_stack[frame_idx].pc;
@@ -184,6 +191,18 @@ impl VM {
                         push_stack(&mut self.stack, index)?;
                     }
                     */
+                }
+
+                // forth style if .. then
+                JUMP_IF_FALSE => {
+                    if pop_stack(&mut self.stack)? == FALSE_VAL {
+                        let val = prepare_u32_from_be_checked(instructions, pc)?;
+                        dbg!(&val);
+                        pc = val as usize;
+                    } else {
+                        // skiping jump destination which is u32 ie 4 bytes
+                        pc += 4;
+                    }
                 }
 
                 DUP => {

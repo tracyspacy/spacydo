@@ -36,6 +36,57 @@ fn test_push_string() {
 }
 
 #[test]
+#[serial]
+fn test_if_then_true() {
+    let mut vm = VM::init("PUSH_U32 100 PUSH_U32 100 EQ IF PUSH_U32 1 THEN").unwrap();
+    let stack = vm.run().unwrap();
+    assert_eq!(stack, vec![to_u32_val(1)]);
+}
+
+#[test]
+#[serial]
+fn test_if_then_false() {
+    let mut vm = VM::init("PUSH_U32 100 PUSH_U32 100 NEQ IF PUSH_U32 1 THEN").unwrap();
+    let stack = vm.run().unwrap();
+    assert_eq!(stack, vec![]);
+}
+
+#[test]
+#[serial]
+fn test_if_then_true_nested() {
+    let mut vm = VM::init(
+        "PUSH_U32 100 PUSH_U32 100 EQ IF PUSH_U32 1 PUSH_U32 1 EQ IF PUSH_U32 2 THEN THEN",
+    )
+    .unwrap();
+    let stack = vm.run().unwrap();
+    assert_eq!(stack, vec![to_u32_val(2)]);
+}
+
+#[test]
+#[serial]
+fn test_if_then_false_nested() {
+    let mut vm = VM::init(
+        "PUSH_U32 100 PUSH_U32 99 EQ IF PUSH_U32 1 PUSH_U32 1 EQ IF PUSH_U32 2 THEN THEN PUSH_U32 3", 
+    )
+    .unwrap(); // only 3 on stack, no 2 since if drops and jumps to then
+    let stack = vm.run().unwrap();
+    assert_eq!(stack, vec![to_u32_val(3)]);
+}
+
+// instruction disassembly test, probably remove later
+#[test]
+#[serial] //?
+fn test_disassembly_if_then() {
+    let instructions =
+        "PUSH_U32 100 PUSH_U32 100 EQ IF PUSH_U32 1 PUSH_U32 1 EQ IF PUSH_U32 2 THEN THEN";
+    let vm = VM::init(instructions).unwrap();
+    let disassembled_bytecode = vm.disassemble_bytecode().unwrap();
+    dbg!(&instructions);
+    dbg!(&disassembled_bytecode);
+    assert_eq!(instructions, disassembled_bytecode);
+}
+
+#[test]
 #[serial] //?
 fn test_dup() {
     let mut vm = VM::init("PUSH_U32 100 DUP").unwrap();
@@ -246,6 +297,20 @@ fn test_malformed_calldata_missing_start_bracket() {
             context: "expected [ after PUSH_CALLDATA",
         })
     ));
+}
+
+#[test]
+#[serial] //?
+fn test_malformed_if_then_missing_if() {
+    let result = VM::init("PUSH_U32 1 PUSH_U32 1 EQ PUSH_U32 3 THEN");
+    assert!(matches!(result, Err(VMError::MalformedIfThen { .. })));
+}
+
+#[test]
+#[serial] //?
+fn test_malformed_if_then_missing_then() {
+    let result = VM::init("PUSH_U32 1 PUSH_U32 1 EQ IF PUSH_U32 3");
+    assert!(matches!(result, Err(VMError::MalformedIfThen { .. })));
 }
 
 #[test]

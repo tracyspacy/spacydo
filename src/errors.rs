@@ -43,6 +43,9 @@ pub enum VMError {
     UnknownOpcode {
         opcode: String,
     },
+    MalformedIfThen {
+        context: &'static str,
+    },
 }
 
 pub type VMResult<T> = Result<T, VMError>;

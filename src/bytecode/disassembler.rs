@@ -13,7 +13,7 @@ pub fn disassemble(
 ) -> VMResult<String> {
     let mut result = String::new();
     let mut pc: usize = 0;
-
+    let mut jump_dest_stack: Vec<u32> = Vec::new();
     while pc < bytecode.len() {
         let op = bytecode[pc];
         pc += 1;
@@ -49,6 +49,13 @@ pub fn disassemble(
                 // result.push(' ');
                 pc += 1;
             }
+
+            JUMP_IF_FALSE => {
+                result.push_str("IF ");
+                jump_dest_stack.push(prepare_u32_from_be_checked(bytecode, pc)?);
+                pc += 4;
+            }
+
             PUSH_CALLDATA => {
                 result.push_str("PUSH_CALLDATA ");
                 let idx = prepare_u32_from_be_checked(bytecode, pc)? as usize;
@@ -86,6 +93,16 @@ pub fn disassemble(
             LT => result.push_str("LT "),
             GT => result.push_str("GT "),
             _ => {}
+        }
+
+        //checking if pc is eq to position of then word
+        while let Some(&dest) = jump_dest_stack.last() {
+            if dest as usize == pc {
+                result.push_str("THEN ");
+                jump_dest_stack.pop();
+            } else {
+                break;
+            }
         }
     }
 
