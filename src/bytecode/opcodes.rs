@@ -46,6 +46,7 @@ LOOP - (execute loop) -> pop limit -> pop index -> pop pc -> compare next index 
 (if loop is over just continue with next pc, not jump back)
 example: PUSH_U64 100 PUSH_U32 0 DO PUSH_U64 99 LOOP (same as (0..100).for_each(|_| v.push(99)); )
 LOOP_INDEX - push current loop index to stack (! rn is not safe for nested loops )
+JUMP_IF_FALSE - forth like if..then - pop true or false value, if false, jump to jump destinnation (after then)
 
 CALL (executes tasks instructions) - pop task id -> Save the current pc into the current call frame -> pushes new instructions frame from task -> switches contexts to tasks instructions => vm.run is on new pc and matches different set of instructions (see vm.rs).
 END_CALL (returns to main context) - pop current frame from CALL_STACK (task instructions) -> switches context back to main call frame (see vmr.rs).
@@ -81,3 +82,5 @@ pub const EQ: u8 = 0x15; //compares 2 element on stack and pushes either true or
 pub const NEQ: u8 = 0x16;
 pub const LT: u8 = 0x17; // "less than" - [left,right] returns true only if left is less than right
 pub const GT: u8 = 0x18; // "greater than" - [left,right] returns true only if left is greater than right
+
+pub const JUMP_IF_FALSE: u8 = 0x19; //
