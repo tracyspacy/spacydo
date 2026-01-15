@@ -59,7 +59,7 @@ cargo test
 
 **Storage Operations**: `S_SAVE`, `S_LEN`
 
-**Control Flow**: `DO`, `LOOP`, `LOOP_INDEX`, `CALL`, `END_CALL`
+**Control Flow**: `DO`, `LOOP`, `LOOP_INDEX`, `CALL`, `END_CALL`, `IF..THEN`
 
 **Comparison**: `EQ`, `NEQ`, `LT`, `GT`
 
