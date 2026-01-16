@@ -148,3 +148,59 @@ pub fn value_cmp(left: Value, right: Value, is_lt: bool) -> VMResult<Value> {
         false => Ok(to_bool_val(to_u32(left) > to_u32(right))),
     }
 }
+
+// unboxing Values
+
+pub enum ValueType {
+    U32,
+    String,
+    CallData,
+    Bool,
+}
+
+pub fn get_value_type(nan_boxed_val: Value) -> VMResult<ValueType> {
+    match tag(nan_boxed_val)? {
+        TAG_U32 => Ok(ValueType::U32),
+        TAG_STRING => Ok(ValueType::String),
+        TAG_CALLDATA => Ok(ValueType::CallData),
+        TAG_FALSE | TAG_TRUE => Ok(ValueType::Bool),
+        _ => Err(VMError::InvalidType),
+    }
+}
+
+#[derive(Debug)]
+pub enum Return<'a> {
+    U32(u32),
+    String(&'a str),
+    CallData(String),
+    Bool(bool),
+}
+
+impl<'a> Return<'a> {
+    pub fn as_u32(&self) -> VMResult<u32> {
+        match self {
+            Return::U32(v) => Ok(*v),
+            _ => Err(VMError::TypeMismatch),
+        }
+    }
+    pub fn as_str(&self) -> VMResult<&'a str> {
+        match self {
+            Return::String(s) => Ok(*s),
+            _ => Err(VMError::TypeMismatch),
+        }
+    }
+
+    pub fn as_calldata(&self) -> VMResult<&str> {
+        match self {
+            Return::CallData(c) => Ok(c),
+            _ => Err(VMError::TypeMismatch),
+        }
+    }
+
+    pub fn as_bool(&self) -> VMResult<bool> {
+        match self {
+            Return::Bool(b) => Ok(*b),
+            _ => Err(VMError::TypeMismatch),
+        }
+    }
+}
