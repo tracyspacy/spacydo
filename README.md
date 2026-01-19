@@ -40,19 +40,21 @@ cargo test
 
 ```
 let ops = "PUSH_U32 2 PUSH_U32 2 EQ IF PUSH_U32 3 THEN PUSH_U32 4 PUSH_STRING HELLO PUSH_U32 42 PUSH_U32 42 EQ PUSH_CALLDATA [ PUSH_U32 11 END_CALL ]";
+// inits vm with instructions
+let mut vm = VM::init(ops)?;
 
-let mut vm = VM::init(ops)?; // inits vm with instructions
+// executes instructions and returns raw stack with NaN-boxed values
+let raw_stack = vm.run()?;
 
-let raw_stack = vm.run()?; // executes instructions and returns raw stack with NaN-boxed values
 
-/*
-unboxing raw values returns: 
-[U32(3), U32(4), String("HELLO"), Bool(true), CallData("PUSH_U32 11 END_CALL")]
-*/
+// unboxing raw values returns: 
+// [U32(3), U32(4), String("HELLO"), Bool(true), CallData("PUSH_U32 11 END_CALL")]
+
 let unboxed_stack = vm.unbox(stack)?;
 
 // returns 3u32
 let _val:u32 = unboxed_stack[0].as_u32()?;
+
 // returns "PUSH_U32 11 END_CALL"
 let _calldata:&str = unboxed_stack[4].as_calldata()?;
 
