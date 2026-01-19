@@ -1,5 +1,5 @@
 use serial_test::serial;
-use spacydo::{TRUE_VAL, Task, TaskStatus, VM, VMError, to_u32, to_u32_val};
+use spacydo::{TRUE_VAL, Task, TaskStatus, VM, VMError, to_u32_val};
 use std::fs;
 
 fn clear_storage() {
@@ -33,7 +33,6 @@ fn test_push_string() {
     let mut vm = VM::init("PUSH_STRING hello").unwrap();
     let stack = vm.run().unwrap();
     //first string internes to 0 index
-    assert_eq!(to_u32(stack[0]), 0);
     let unboxed = vm.unbox(stack).unwrap();
     assert_eq!("hello", unboxed[0].as_str().unwrap());
 }
@@ -94,8 +93,9 @@ fn test_disassembly_if_then() {
 fn test_dup() {
     let mut vm = VM::init("PUSH_U32 100 DUP").unwrap();
     let stack = vm.run().unwrap();
-    let untagged_stack: Vec<u32> = stack.iter().map(|v| to_u32(*v)).collect();
-    assert_eq!(untagged_stack, vec![100, 100]);
+    let unboxed = vm.unbox(stack).unwrap();
+    let stack_u32: Vec<u32> = unboxed.iter().map(|v| v.as_u32().unwrap()).collect();
+    assert_eq!(stack_u32, vec![100, 100]);
 }
 
 #[test]
@@ -103,8 +103,10 @@ fn test_dup() {
 fn test_swap() {
     let mut vm = VM::init("PUSH_U32 1 PUSH_U32 2 SWAP").unwrap();
     let stack = vm.run().unwrap();
-    let untagged_stack: Vec<u32> = stack.iter().map(|v| to_u32(*v)).collect();
-    assert_eq!(untagged_stack, vec![2, 1]);
+    let unboxed = vm.unbox(stack).unwrap();
+    let stack_u32: Vec<u32> = unboxed.iter().map(|v| v.as_u32().unwrap()).collect();
+
+    assert_eq!(stack_u32, vec![2, 1]);
 }
 
 #[test]

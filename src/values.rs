@@ -112,7 +112,7 @@ const fn is_u32_val(v: Value) -> bool {
 // potentially risky, need to add validation
 // shouldn't be accesible - wrong conversions are possible - ie nan boxed TRUE_VAL and FALSE_VAL both returns 0
 #[inline]
-pub const fn to_u32(v: Value) -> u32 {
+pub(crate) const fn to_u32(v: Value) -> u32 {
     ((v >> 18) & 0xffff_ffff) as u32
     // unused 15 bits  + tag bits 3
 }
