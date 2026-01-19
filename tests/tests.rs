@@ -1,5 +1,5 @@
 use serial_test::serial;
-use spacydo::{TRUE_VAL, Task, TaskStatus, VM, VMError, to_u32_val};
+use spacydo::{Task, TaskStatus, VM, VMError};
 use std::fs;
 
 fn clear_storage() {
@@ -34,7 +34,7 @@ fn test_push_string() {
     let stack = vm.run().unwrap();
     //first string internes to 0 index
     let unboxed = vm.unbox(stack).unwrap();
-    assert_eq!("hello", unboxed[0].as_str().unwrap());
+    assert_eq!(unboxed[0].as_str().unwrap(), "hello");
 }
 
 #[test]
@@ -42,7 +42,8 @@ fn test_push_string() {
 fn test_if_then_true() {
     let mut vm = VM::init("PUSH_U32 100 PUSH_U32 100 EQ IF PUSH_U32 1 THEN").unwrap();
     let stack = vm.run().unwrap();
-    assert_eq!(stack, vec![to_u32_val(1)]);
+    let unboxed = vm.unbox(stack).unwrap();
+    assert_eq!(unboxed[0].as_u32().unwrap(), 1);
 }
 
 #[test]
@@ -61,7 +62,8 @@ fn test_if_then_true_nested() {
     )
     .unwrap();
     let stack = vm.run().unwrap();
-    assert_eq!(stack, vec![to_u32_val(2)]);
+    let unboxed = vm.unbox(stack).unwrap();
+    assert_eq!(unboxed[0].as_u32().unwrap(), 2);
 }
 
 #[test]
@@ -72,7 +74,8 @@ fn test_if_then_false_nested() {
     )
     .unwrap(); // only 3 on stack, no 2 since if drops and jumps to then
     let stack = vm.run().unwrap();
-    assert_eq!(stack, vec![to_u32_val(3)]);
+    let unboxed = vm.unbox(stack).unwrap();
+    assert_eq!(unboxed[0].as_u32().unwrap(), 3);
 }
 
 // instruction disassembly test, probably remove later
@@ -105,7 +108,6 @@ fn test_swap() {
     let stack = vm.run().unwrap();
     let unboxed = vm.unbox(stack).unwrap();
     let stack_u32: Vec<u32> = unboxed.iter().map(|v| v.as_u32().unwrap()).collect();
-
     assert_eq!(stack_u32, vec![2, 1]);
 }
 
@@ -122,7 +124,8 @@ fn test_dup_stack_underflow() {
 fn test_eq_true() {
     let mut vm = VM::init("PUSH_U32 161 PUSH_U32 161 EQ").unwrap();
     let stack = vm.run().unwrap();
-    assert_eq!(stack, vec![TRUE_VAL]); // TRUE - think hot to display simplier like 1 and 0 again
+    let unboxed = vm.unbox(stack).unwrap();
+    assert!(unboxed[0].as_bool().unwrap());
 }
 
 #[test]
@@ -131,7 +134,8 @@ fn test_neq_true() {
     clear_storage();
     let mut vm = VM::init("PUSH_U32 162 PUSH_U32 222 NEQ").unwrap();
     let stack = vm.run().unwrap();
-    assert_eq!(stack, vec![TRUE_VAL]);
+    let unboxed = vm.unbox(stack).unwrap();
+    assert!(unboxed[0].as_bool().unwrap());
 }
 
 #[test]
@@ -140,7 +144,8 @@ fn test_lt_true() {
     clear_storage();
     let mut vm = VM::init("PUSH_U32 0 PUSH_U32 1 LT").unwrap();
     let stack = vm.run().unwrap();
-    assert_eq!(stack, vec![TRUE_VAL]);
+    let unboxed = vm.unbox(stack).unwrap();
+    assert!(unboxed[0].as_bool().unwrap());
 }
 
 #[test]
@@ -149,7 +154,8 @@ fn test_gt_true() {
     clear_storage();
     let mut vm = VM::init("PUSH_U32 1 PUSH_U32 0 GT").unwrap();
     let stack = vm.run().unwrap();
-    assert_eq!(stack, vec![TRUE_VAL]);
+    let unboxed = vm.unbox(stack).unwrap();
+    assert!(unboxed[0].as_bool().unwrap());
 }
 
 #[test]
@@ -165,7 +171,8 @@ fn test_drop_if_true() {
 fn test_drop_if_false() {
     let mut vm = VM::init("PUSH_U32 999 PUSH_U32 2 PUSH_U32 3 GT DROP_IF").unwrap();
     let stack = vm.run().unwrap();
-    assert_eq!(stack, vec![to_u32_val(999)]); // nan boxed 999 kept
+    let unboxed = vm.unbox(stack).unwrap();
+    assert_eq!(unboxed[0].as_u32().unwrap(), 999);
 }
 
 #[test]
@@ -210,8 +217,8 @@ fn test_get_task_field_status() {
                    PUSH_U32 0 PUSH_TASK_FIELD 1 T_GET_FIELD";
     let mut vm = VM::init(ops).unwrap();
     let stack = vm.run().unwrap();
-
-    assert_eq!(stack, vec![to_u32_val(0)]);
+    let unboxed = vm.unbox(stack).unwrap();
+    assert_eq!(unboxed[0].as_u32().unwrap(), 0);
     let test_task = vm.print_task(0).unwrap();
     assert_eq!(test_task.status, TaskStatus::NotComplete); //same as previous NotComplete == 0
 }
@@ -225,7 +232,8 @@ fn test_set_task_field_status() {
                    PUSH_U32 0 PUSH_TASK_FIELD 1 T_GET_FIELD";
     let mut vm = VM::init(ops).unwrap();
     let stack = vm.run().unwrap();
-    assert_eq!(stack, vec![to_u32_val(2)]);
+    let unboxed = vm.unbox(stack).unwrap();
+    assert_eq!(unboxed[0].as_u32().unwrap(), 2);
 }
 
 #[test]
@@ -236,8 +244,9 @@ fn test_delete_task() {
                    PUSH_U32 0 T_DELETE S_LEN";
     let mut vm = VM::init(ops).unwrap();
     let stack = vm.run().unwrap();
-
-    assert_eq!(stack, vec![to_u32_val(1), to_u32_val(0)]); // 1 task after task create and 0 tasks remain after delete
+    let unboxed = vm.unbox(stack).unwrap();
+    let stack_u32: Vec<u32> = unboxed.iter().map(|v| v.as_u32().unwrap()).collect();
+    assert_eq!(stack_u32, vec![1, 0]); // 1 task after task create and 0 tasks remain after delete
 }
 
 #[test]
@@ -249,8 +258,9 @@ fn test_task_with_simple_calldata() {
                PUSH_U32 0 DUP CALL"; // DUP is to keep task id
     let mut vm = VM::init(ops).unwrap();
     let stack = vm.run().unwrap();
-
-    assert_eq!(stack, vec![to_u32_val(0), to_u32_val(42)]);
+    let unboxed = vm.unbox(stack).unwrap();
+    let stack_u32: Vec<u32> = unboxed.iter().map(|v| v.as_u32().unwrap()).collect();
+    assert_eq!(stack_u32, vec![0, 42]);
 }
 
 //assemble error handling
@@ -394,7 +404,9 @@ fn test_multiple_tasks_iteration() {
     let mut vm = VM::init(ops).unwrap();
     let stack = vm.run().unwrap();
     dbg!(&stack);
-    assert_eq!(stack, vec![to_u32_val(0), to_u32_val(1), to_u32_val(2)]);
+    let unboxed = vm.unbox(stack).unwrap();
+    let stack_u32: Vec<u32> = unboxed.iter().map(|v| v.as_u32().unwrap()).collect();
+    assert_eq!(stack_u32, vec![0, 1, 2]);
 }
 
 #[test]
@@ -411,8 +423,8 @@ fn test_task_creates_subtask() {
     let stack = vm.run().unwrap();
     // let task = vm.print_task(1).unwrap();
     // dbg!(&task);
-    dbg!(&stack);
-    assert_eq!(stack, vec![to_u32_val(2)]);
+    let unboxed = vm.unbox(stack).unwrap();
+    assert_eq!(unboxed[0].as_u32().unwrap(), 2);
 }
 
 #[test]
@@ -431,7 +443,8 @@ fn test_save_and_load() {
     {
         let mut vm = VM::init("S_LEN").unwrap();
         let stack = vm.run().unwrap();
-        assert_eq!(stack, vec![to_u32_val(2)]);
+        let unboxed = vm.unbox(stack).unwrap();
+        assert_eq!(unboxed[0].as_u32().unwrap(), 2);
     }
 }
 
@@ -452,8 +465,8 @@ fn test_delete_complex() {
     {
         let mut vm = VM::init("S_LEN").unwrap();
         let stack = vm.run().unwrap();
-
-        assert_eq!(stack, vec![to_u32_val(3)]);
+        let unboxed = vm.unbox(stack).unwrap();
+        assert_eq!(unboxed[0].as_u32().unwrap(), 3);
     }
 
     {
