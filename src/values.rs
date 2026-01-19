@@ -121,18 +121,14 @@ pub fn value_eq(left: Value, right: Value) -> VMResult<Value> {
     let tag_left = tag(left)?;
     let tag_right = tag(right)?;
     if tag_left != tag_right {
-        return Err(VMError::TypeMismatch);
+        Err(VMError::TypeMismatch)
     } else {
         match tag_left {
-            TAG_U32 | TAG_STRING | TAG_CALLDATA => {
-                return Ok(to_bool_val(to_u32(left) == to_u32(right)));
-            }
-            TAG_TRUE | TAG_FALSE => {
-                return Ok(to_bool_val(left == right));
-            }
-            _ => return Err(VMError::InvalidType),
+            TAG_U32 | TAG_STRING | TAG_CALLDATA => Ok(to_bool_val(to_u32(left) == to_u32(right))),
+            TAG_TRUE | TAG_FALSE => Ok(to_bool_val(left == right)),
+            _ => Err(VMError::InvalidType),
         }
-    };
+    }
 }
 
 pub fn value_neq(left: Value, right: Value) -> VMResult<Value> {
