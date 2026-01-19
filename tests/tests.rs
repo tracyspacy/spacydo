@@ -11,7 +11,8 @@ fn clear_storage() {
 fn test_push_u32() {
     let mut vm = VM::init("PUSH_U32 1234567890").unwrap();
     let stack = vm.run().unwrap();
-    assert_eq!(to_u32(stack[0]), 1234567890);
+    let unboxed = vm.unbox(stack).unwrap();
+    assert_eq!(unboxed[0].as_u32().unwrap(), 1234567890);
 }
 
 #[test]
@@ -33,6 +34,8 @@ fn test_push_string() {
     let stack = vm.run().unwrap();
     //first string internes to 0 index
     assert_eq!(to_u32(stack[0]), 0);
+    let unboxed = vm.unbox(stack).unwrap();
+    assert_eq!("hello", unboxed[0].as_str().unwrap());
 }
 
 #[test]

@@ -110,6 +110,7 @@ const fn is_u32_val(v: Value) -> bool {
 
 // u32_val & string_val & calldata_val all u32
 // potentially risky, need to add validation
+// shouldn't be accesible - wrong conversions are possible - ie nan boxed TRUE_VAL and FALSE_VAL both returns 0
 #[inline]
 pub const fn to_u32(v: Value) -> u32 {
     ((v >> 18) & 0xffff_ffff) as u32
