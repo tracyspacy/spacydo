@@ -58,7 +58,7 @@ impl VM {
         disassemble(bytecode, &self.pool, &self.instructions_pool)
     }
 
-    pub fn run(&mut self) -> VMResult<Vec<u64>> {
+    pub fn run(&mut self) -> VMResult<Vec<Value>> {
         //std::vec::Drain<'_, u64>
         // check this
         let frame_idx = self.call_stack.len() - 1;
@@ -289,5 +289,25 @@ impl VM {
         }
         // self.stack.drain(..)
         Ok(std::mem::take(&mut self.stack))
+    }
+    // unbox NaN-boxed values on stack.
+    //
+    pub fn unbox<'a>(&'a self, stack: Vec<Value>) -> VMResult<Vec<Return<'a>>> {
+        stack
+            .iter()
+            .map(|&v| match get_value_type(v)? {
+                ValueType::U32 => Ok(Return::U32(to_u32(v))),
+                ValueType::Bool => Ok(Return::Bool(v == TRUE_VAL)),
+                ValueType::String => Ok(Return::String(self.pool.resolve(to_u32(v) as usize)?)),
+                ValueType::CallData => {
+                    let bytecode = self.instructions_pool.get(to_u32(v) as usize)?;
+                    Ok(Return::CallData(disassemble(
+                        bytecode,
+                        &self.pool,
+                        &self.instructions_pool,
+                    )?))
+                }
+            })
+            .collect()
     }
 }

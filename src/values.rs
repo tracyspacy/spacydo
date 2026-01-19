@@ -33,8 +33,8 @@ const TAG_TRUE: u64 = 3;
 const TAG_STRING: u64 = 4;
 const TAG_CALLDATA: u64 = 5;
 const TAG_U32: u64 = 6;
-pub const FALSE_VAL: Value = QNAN | (TAG_FALSE);
-pub const TRUE_VAL: Value = QNAN | (TAG_TRUE);
+pub(crate) const FALSE_VAL: Value = QNAN | (TAG_FALSE);
+pub(crate) const TRUE_VAL: Value = QNAN | (TAG_TRUE);
 
 //shifting 18 bits (unused(15) + tag (3))
 #[inline]
@@ -48,12 +48,12 @@ pub const fn to_string_val(idx: u32) -> Value {
 }
 
 #[inline]
-pub const fn to_u32_val(idx: u32) -> Value {
+pub(crate) const fn to_u32_val(idx: u32) -> Value {
     make_tagged(TAG_U32, idx)
 }
 
 #[inline]
-pub const fn to_calldata_val(idx: u32) -> Value {
+pub(crate) const fn to_calldata_val(idx: u32) -> Value {
     make_tagged(TAG_CALLDATA, idx)
 }
 
@@ -110,41 +110,94 @@ const fn is_u32_val(v: Value) -> bool {
 
 // u32_val & string_val & calldata_val all u32
 // potentially risky, need to add validation
+// shouldn't be accesible - wrong conversions are possible - ie nan boxed TRUE_VAL and FALSE_VAL both returns 0
 #[inline]
-pub const fn to_u32(v: Value) -> u32 {
+pub(crate) const fn to_u32(v: Value) -> u32 {
     ((v >> 18) & 0xffff_ffff) as u32
     // unused 15 bits  + tag bits 3
 }
 
-pub fn value_eq(left: Value, right: Value) -> VMResult<Value> {
+pub(crate) fn value_eq(left: Value, right: Value) -> VMResult<Value> {
     let tag_left = tag(left)?;
     let tag_right = tag(right)?;
     if tag_left != tag_right {
-        return Err(VMError::TypeMismatch);
+        Err(VMError::TypeMismatch)
     } else {
         match tag_left {
-            TAG_U32 | TAG_STRING | TAG_CALLDATA => {
-                return Ok(to_bool_val(to_u32(left) == to_u32(right)));
-            }
-            TAG_TRUE | TAG_FALSE => {
-                return Ok(to_bool_val(left == right));
-            }
-            _ => return Err(VMError::InvalidType),
+            TAG_U32 | TAG_STRING | TAG_CALLDATA => Ok(to_bool_val(to_u32(left) == to_u32(right))),
+            TAG_TRUE | TAG_FALSE => Ok(to_bool_val(left == right)),
+            _ => Err(VMError::InvalidType),
         }
-    };
+    }
 }
 
-pub fn value_neq(left: Value, right: Value) -> VMResult<Value> {
+pub(crate) fn value_neq(left: Value, right: Value) -> VMResult<Value> {
     Ok(bool_not(value_eq(left, right)?))
 }
 
 //comparing u32_val only for now
-pub fn value_cmp(left: Value, right: Value, is_lt: bool) -> VMResult<Value> {
+pub(crate) fn value_cmp(left: Value, right: Value, is_lt: bool) -> VMResult<Value> {
     if !is_u32_val(left) || !is_u32_val(right) {
         return Err(VMError::InvalidType);
     }
     match is_lt {
         true => Ok(to_bool_val(to_u32(left) < to_u32(right))),
         false => Ok(to_bool_val(to_u32(left) > to_u32(right))),
+    }
+}
+
+// unboxing Values
+
+pub(crate) enum ValueType {
+    U32,
+    String,
+    CallData,
+    Bool,
+}
+
+pub(crate) fn get_value_type(nan_boxed_val: Value) -> VMResult<ValueType> {
+    match tag(nan_boxed_val)? {
+        TAG_U32 => Ok(ValueType::U32),
+        TAG_STRING => Ok(ValueType::String),
+        TAG_CALLDATA => Ok(ValueType::CallData),
+        TAG_FALSE | TAG_TRUE => Ok(ValueType::Bool),
+        _ => Err(VMError::InvalidType),
+    }
+}
+
+#[derive(Debug)]
+pub enum Return<'a> {
+    U32(u32),
+    String(&'a str),
+    CallData(String),
+    Bool(bool),
+}
+
+impl<'a> Return<'a> {
+    pub fn as_u32(&self) -> VMResult<u32> {
+        match self {
+            Return::U32(v) => Ok(*v),
+            _ => Err(VMError::TypeMismatch),
+        }
+    }
+    pub fn as_str(&self) -> VMResult<&'a str> {
+        match self {
+            Return::String(s) => Ok(*s),
+            _ => Err(VMError::TypeMismatch),
+        }
+    }
+
+    pub fn as_calldata(&self) -> VMResult<&str> {
+        match self {
+            Return::CallData(c) => Ok(c),
+            _ => Err(VMError::TypeMismatch),
+        }
+    }
+
+    pub fn as_bool(&self) -> VMResult<bool> {
+        match self {
+            Return::Bool(b) => Ok(*b),
+            _ => Err(VMError::TypeMismatch),
+        }
     }
 }

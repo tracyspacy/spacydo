@@ -57,7 +57,7 @@ pub fn disassemble(
             }
 
             PUSH_CALLDATA => {
-                result.push_str("PUSH_CALLDATA ");
+                result.push_str("PUSH_CALLDATA [ ");
                 let idx = prepare_u32_from_be_checked(bytecode, pc)? as usize;
                 pc += 4;
                 //check logic
