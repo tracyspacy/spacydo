@@ -28,7 +28,7 @@ impl<T: Default + Copy, const C: usize> InlineVec<T, C> {
     pub(crate) const fn capacity(&self) -> usize {
         C
     }
-    pub(crate) const fn len(&self) -> usize {
+    pub const fn len(&self) -> usize {
         self.len as usize
     }
     pub(crate) const fn is_empty(&self) -> bool {
@@ -73,7 +73,7 @@ impl<T: Default + Copy, const C: usize> InlineVec<T, C> {
 }
 
 impl<T: Default + Copy, const C: usize> Default for InlineVec<T, C> {
-    /// Return an empty array
+    // Return an empty array
     fn default() -> InlineVec<T, C> {
         InlineVec::new()
     }
