@@ -6,7 +6,7 @@ use crate::pools::{InstructionsPool, StringPool};
 use crate::storage::{storage::Storage, task_types::*};
 use crate::values::*;
 
-const STACK_LIMIT: usize = 10_020;
+const STACK_LIMIT: usize = 1_000;
 const CONTROL_STACK_LIMIT: usize = 2;
 
 type Stack = InlineVec<Value, STACK_LIMIT>;
