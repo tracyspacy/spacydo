@@ -8,11 +8,13 @@ use crate::values::*;
 
 const STACK_LIMIT: usize = 1_000;
 const CONTROL_STACK_LIMIT: usize = 2;
+const CALL_STACK_LIMIT: usize = 2;
 
 type Stack = InlineVec<Value, STACK_LIMIT>;
 type ControlStack = InlineVec<(u64, u64, u64), CONTROL_STACK_LIMIT>;
+type CallStack = InlineVec<InstructionsFrame, CALL_STACK_LIMIT>;
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Default)]
 struct InstructionsFrame {
     instructions_ref: u32,
     pc: usize,
@@ -25,7 +27,7 @@ pub struct VM {
     storage: Storage,
     pool: StringPool,
     instructions_pool: InstructionsPool,
-    call_stack: Vec<InstructionsFrame>, // limit to 2 ? main and task innenr instructions ?
+    call_stack: CallStack,
 }
 
 /// VM is NOT thread-safe.
@@ -39,18 +41,20 @@ impl VM {
         let program_ops = assemble(instructions, &mut pool, &mut vm_instructions)?;
         let program_ref = vm_instructions.intern_instructions(program_ops);
         let storage = Storage::load(&mut pool, &mut vm_instructions)?;
-
+        let mut call_stack = CallStack::default();
         let call_frame = InstructionsFrame {
             instructions_ref: program_ref,
             pc: 0,
         };
+        call_stack.push(call_frame)?;
+
         Ok(Self {
             stack: Stack::default(),
             control_stack: ControlStack::default(),
             storage,
             pool,
             instructions_pool: vm_instructions,
-            call_stack: vec![call_frame],
+            call_stack: call_stack,
         })
     }
 
@@ -60,7 +64,11 @@ impl VM {
     }
     // for test purposes, probably remove later
     pub fn disassemble_bytecode(&self) -> VMResult<String> {
-        let bytecode_ref = self.call_stack[self.call_stack.len() - 1].instructions_ref;
+        let bytecode_ref = self
+            .call_stack
+            .last()
+            .ok_or(VMError::StackUnderflow)?
+            .instructions_ref;
         let bytecode = self.instructions_pool.get(bytecode_ref as usize)?;
         disassemble(bytecode, &self.pool, &self.instructions_pool)
     }
@@ -68,9 +76,12 @@ impl VM {
     pub fn run(&mut self) -> VMResult<Stack> {
         //std::vec::Drain<'_, u64>
         // check this
-        let frame_idx = self.call_stack.len() - 1;
-        let mut instructions_ref = self.call_stack[frame_idx].instructions_ref;
-        let mut pc = self.call_stack[frame_idx].pc;
+        let mut instructions_ref = self
+            .call_stack
+            .last()
+            .ok_or(VMError::StackUnderflow)?
+            .instructions_ref;
+        let mut pc = self.call_stack.last().ok_or(VMError::StackUnderflow)?.pc;
         let mut instructions = self.instructions_pool.get(instructions_ref as usize)?;
         while let Some(&op) = instructions.get(pc) {
             //println!("After {:?}: stack = {:?}", op, self.stack);
@@ -189,8 +200,12 @@ impl VM {
                     }
                 }
                 LOOP_INDEX => {
-                    let idx = self.control_stack.last()?.1;
-                    self.stack.push(to_u32_val(idx as u32))?;
+                    if let Some(last_val) = self.control_stack.last() {
+                        let idx = last_val.1;
+                        self.stack.push(to_u32_val(idx as u32))?;
+                    } else {
+                        return Err(VMError::StackUnderflow);
+                    }
                 } // check logic for nested loops
 
                 //remove or repurpose rn it just validates if taskvm exists (relict opcode)
@@ -216,7 +231,7 @@ impl VM {
                 }
 
                 DUP => {
-                    let v = self.stack.last()?;
+                    let v = self.stack.last().ok_or(VMError::StackUnderflow)?;
                     self.stack.push(v)?
                 }
 
@@ -278,7 +293,7 @@ impl VM {
                         .get(task.instructions_ref as usize)?
                         .is_empty()
                     {
-                        self.call_stack.push(frame);
+                        let _ = self.call_stack.push(frame);
                         instructions_ref = frame.instructions_ref;
                         instructions = self.instructions_pool.get(instructions_ref as usize)?;
                         pc = frame.pc;
@@ -286,8 +301,8 @@ impl VM {
                 }
                 END_CALL => {
                     if self.call_stack.len() > 1 {
-                        pop_stack(&mut self.call_stack)?;
-                        let frame = last_stack(&self.call_stack)?;
+                        self.call_stack.pop()?;
+                        let frame = self.call_stack.last().ok_or(VMError::StackUnderflow)?;
                         instructions_ref = frame.instructions_ref;
                         instructions = self.instructions_pool.get(instructions_ref as usize)?;
                         pc = frame.pc;

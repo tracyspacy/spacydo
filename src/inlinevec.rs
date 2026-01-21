@@ -58,13 +58,21 @@ impl<T: Default + Copy, const C: usize> InlineVec<T, C> {
 
         Ok(value)
     }
-    pub(crate) fn last(&self) -> VMResult<T> {
+    pub(crate) fn last(&self) -> Option<T> {
+        //add new error type or return Option
         if self.is_empty() {
-            return Err(VMError::StackUnderflow);
+            return None;
         }
         let value = self.array[self.len() - 1];
+        Some(value)
+    }
 
-        Ok(value)
+    pub(crate) fn last_mut(&mut self) -> Option<&mut T> {
+        //add new error type or return Option
+        if self.is_empty() {
+            return None;
+        }
+        Some(&mut self.array[self.len() - 1])
     }
 
     pub fn as_slice(&self) -> &[T] {
