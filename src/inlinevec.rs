@@ -3,7 +3,7 @@
 // InlineVec is fixed size - ie not growable.
 
 #[derive(Debug)]
-pub(crate) struct InlineVec<T, const C: usize> {
+pub struct InlineVec<T, const C: usize> {
     len: u32,
     array: [T; C],
 }
@@ -17,7 +17,7 @@ use crate::errors::{VMError, VMResult};
 //  - add `as_mut_slice`
 //  - add to_vec?
 
-impl<T: Default, const C: usize> InlineVec<T, C> {
+impl<T: Default + Copy, const C: usize> InlineVec<T, C> {
     pub(crate) fn new() -> InlineVec<T, C> {
         InlineVec {
             len: 0,
@@ -57,6 +57,25 @@ impl<T: Default, const C: usize> InlineVec<T, C> {
         let value = std::mem::take(&mut self.array[self.len()]);
 
         Ok(value)
+    }
+    pub(crate) fn last(&self) -> VMResult<T> {
+        if self.is_empty() {
+            return Err(VMError::StackUnderflow);
+        }
+        let value = self.array[self.len() - 1];
+
+        Ok(value)
+    }
+
+    pub fn as_slice(&self) -> &[T] {
+        &self.array[..self.len()]
+    }
+}
+
+impl<T: Default + Copy, const C: usize> Default for InlineVec<T, C> {
+    /// Return an empty array
+    fn default() -> InlineVec<T, C> {
+        InlineVec::new()
     }
 }
 

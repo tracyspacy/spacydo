@@ -21,9 +21,9 @@ fn test_string_interning_reuses_index() {
     clear_storage();
     let mut vm = VM::init("PUSH_STRING hello PUSH_STRING hello").unwrap();
     let stack = vm.run().unwrap();
-
-    assert_eq!(stack.len(), 2);
-    assert_eq!(stack[0], stack[1]); // same intern index
+    let stack_slice = stack.as_slice();
+    assert_eq!(stack_slice.len(), 2);
+    assert_eq!(stack_slice[0], stack_slice[1]); // same intern index
 }
 
 #[test]
@@ -51,7 +51,7 @@ fn test_if_then_true() {
 fn test_if_then_false() {
     let mut vm = VM::init("PUSH_U32 100 PUSH_U32 100 NEQ IF PUSH_U32 1 THEN").unwrap();
     let stack = vm.run().unwrap();
-    assert_eq!(stack, vec![]);
+    assert_eq!(stack.as_slice(), []);
 }
 
 #[test]
@@ -70,7 +70,7 @@ fn test_if_then_true_nested() {
 #[serial]
 fn test_if_then_false_nested() {
     let mut vm = VM::init(
-        "PUSH_U32 100 PUSH_U32 99 EQ IF PUSH_U32 1 PUSH_U32 1 EQ IF PUSH_U32 2 THEN THEN PUSH_U32 3", 
+        "PUSH_U32 100 PUSH_U32 99 EQ IF PUSH_U32 1 PUSH_U32 1 EQ IF PUSH_U32 2 THEN THEN PUSH_U32 3",
     )
     .unwrap(); // only 3 on stack, no 2 since if drops and jumps to then
     let stack = vm.run().unwrap();
@@ -163,7 +163,7 @@ fn test_gt_true() {
 fn test_drop_if_true() {
     let mut vm = VM::init("PUSH_U32 999 PUSH_U32 2 PUSH_U32 1 GT DROP_IF").unwrap();
     let stack = vm.run().unwrap();
-    assert_eq!(stack, vec![]); // 999 was dropped
+    assert_eq!(stack.as_slice(), []); // 999 was dropped
 }
 
 #[test]
@@ -202,9 +202,9 @@ fn test_get_task_field_title() {
                    PUSH_U32 0 PUSH_TASK_FIELD 0 T_GET_FIELD";
     let mut vm = VM::init(ops).unwrap();
     let stack = vm.run().unwrap();
-
+    let stack_slice = stack.as_slice();
     // Should get title string index
-    assert_eq!(stack.len(), 1);
+    assert_eq!(stack_slice.len(), 1);
     let test_task = vm.print_task(0).unwrap();
     assert_eq!(test_task.title, "MyTask1");
 }
@@ -388,8 +388,9 @@ fn test_conditional_task_filtering() {
                    PUSH_STRING TargetTask EQ DROP_IF";
     let mut vm = VM::init(ops).unwrap();
     let stack = vm.run().unwrap();
+    let stack_slice = stack.as_slice();
     dbg!(&stack);
-    assert_eq!(stack.len(), 0);
+    assert_eq!(stack_slice.len(), 0);
 }
 
 // create 3 tasks -> loop over tasks and push index (same as task id since based on s_len) to stack
