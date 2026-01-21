@@ -6,7 +6,11 @@ use crate::pools::{InstructionsPool, StringPool};
 use crate::storage::{storage::Storage, task_types::*};
 use crate::values::*;
 
-type Stack = InlineVec<Value, 1_000>;
+const STACK_LIMIT: usize = 10_020;
+const CONTROL_STACK_LIMIT: usize = 2;
+
+type Stack = InlineVec<Value, STACK_LIMIT>;
+type ControlStack = InlineVec<(u64, u64, u64), CONTROL_STACK_LIMIT>;
 
 #[derive(Debug, Clone, Copy)]
 struct InstructionsFrame {
@@ -17,7 +21,7 @@ struct InstructionsFrame {
 #[derive(Debug)]
 pub struct VM {
     stack: Stack,
-    control_stack: Vec<u64>, //loops limit and index
+    control_stack: ControlStack, //loops limit and index
     storage: Storage,
     pool: StringPool,
     instructions_pool: InstructionsPool,
@@ -41,8 +45,8 @@ impl VM {
             pc: 0,
         };
         Ok(Self {
-            stack: InlineVec::default(),
-            control_stack: Vec::new(),
+            stack: Stack::default(),
+            control_stack: ControlStack::default(),
             storage,
             pool,
             instructions_pool: vm_instructions,
@@ -171,27 +175,21 @@ impl VM {
                 DO => {
                     let index = to_u32(self.stack.pop()?);
                     let limit = to_u32(self.stack.pop()?);
-                    self.control_stack.push(pc as u64);
-                    self.control_stack.push(index as u64);
-                    self.control_stack.push(limit as u64);
+                    self.control_stack
+                        .push((pc as u64, index as u64, limit as u64))?;
                 }
                 LOOP => {
                     //dbg!("***L**O**O**P***{}", &self.stack);
-                    if let (Some(limit), Some(mut index), Some(addr)) = (
-                        self.control_stack.pop(),
-                        self.control_stack.pop(),
-                        self.control_stack.pop(),
-                    ) && index + 1 < limit
-                    {
+                    let (addr, mut index, limit) = self.control_stack.pop()?;
+                    if index + 1 < limit {
                         index += 1;
                         pc = addr as usize;
-                        self.control_stack.push(addr);
-                        self.control_stack.push(index);
-                        self.control_stack.push(limit);
+                        self.control_stack
+                            .push((pc as u64, index as u64, limit as u64))?;
                     }
                 }
                 LOOP_INDEX => {
-                    let idx = self.control_stack[self.control_stack.len() - 2];
+                    let idx = self.control_stack.last()?.1;
                     self.stack.push(to_u32_val(idx as u32))?;
                 } // check logic for nested loops
 

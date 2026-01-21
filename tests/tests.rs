@@ -352,6 +352,27 @@ fn test_invalid_status() {
 }
 
 #[test]
+#[serial]
+fn nested_loop_test() {
+    let mut vm =
+        VM::init("PUSH_U32 2 PUSH_U32 0 DO PUSH_U32 3 PUSH_U32 0 DO LOOP_INDEX LOOP LOOP").unwrap();
+    let raw_stack = vm.run().unwrap();
+    let unboxed = vm.unbox(raw_stack).unwrap();
+    let result_vec: Vec<u32> = unboxed.into_iter().map(|v| v.as_u32().unwrap()).collect();
+    assert_eq!(result_vec, vec![0, 1, 2, 0, 1, 2]);
+}
+
+#[test]
+#[serial]
+fn nested_loop_overflow() {
+    //current Control stack limit is 2
+    let mut vm =
+        VM::init("PUSH_U32 2 PUSH_U32 0 DO PUSH_U32 3 PUSH_U32 0 DO PUSH_U32 4 PUSH_U32 0 DO LOOP_INDEX LOOP LOOP LOOP").unwrap();
+    let result = vm.run();
+    assert!(matches!(result, Err(VMError::StackOverflow)));
+}
+
+#[test]
 #[serial] //?
 fn test_stack_overflow() {
     //loop 1_000_001 times push 99 - should stack overflow since limit 1 mil
