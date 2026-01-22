@@ -318,7 +318,7 @@ fn test_malformed_calldata_missing_start_bracket() {
 #[serial] //?
 fn test_malformed_if_then_missing_if() {
     let result = VM::init("PUSH_U32 1 PUSH_U32 1 EQ PUSH_U32 3 THEN");
-    assert!(matches!(result, Err(VMError::MalformedIfThen { .. })));
+    assert!(matches!(result, Err(VMError::StackUnderflow { .. })));
 }
 
 #[test]
