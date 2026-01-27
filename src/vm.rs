@@ -54,7 +54,7 @@ impl VM {
             storage,
             pool,
             instructions_pool: vm_instructions,
-            call_stack: call_stack,
+            call_stack,
         })
     }
 
@@ -195,8 +195,7 @@ impl VM {
                     if index + 1 < limit {
                         index += 1;
                         pc = addr as usize;
-                        self.control_stack
-                            .push((pc as u64, index as u64, limit as u64))?;
+                        self.control_stack.push((pc as u64, index, limit))?;
                     }
                 }
                 LOOP_INDEX => {

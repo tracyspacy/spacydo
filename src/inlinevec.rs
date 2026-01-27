@@ -13,8 +13,6 @@ use crate::errors::{VMError, VMResult};
 // TODO:
 //  - add Display impl for pretty printing > InlineVec[1,2] instead of InlineVec { len: 2, array: [1, 2, 0, 0, 0] }
 //  - add macro ?
-//  - add `as_slice`
-//  - add `as_mut_slice`
 //  - add to_vec?
 
 impl<T: Default + Copy, const C: usize> InlineVec<T, C> {
