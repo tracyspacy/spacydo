@@ -51,6 +51,13 @@ JUMP_IF_FALSE - forth like if..then - pop true or false value, if false, jump to
 CALL (executes tasks instructions) - pop task id -> Save the current pc into the current call frame -> pushes new instructions frame from task -> switches contexts to tasks instructions => vm.run is on new pc and matches different set of instructions (see vm.rs).
 END_CALL (returns to main context) - pop current frame from CALL_STACK (task instructions) -> switches context back to main call frame (see vmr.rs).
 example: PUSH_U32 0 DUP CALL (execute task 0 instructions)
+
+### MEMORY
+VM Memory is simple Vec<Value>, grows dynamically , but technically lenght is restricted by mem_slice format : 25 bits payload for offset and size - ie (2^25-1) *2 = 67_108_862
+
+M_SLICE declares a slice ddescripton (offset,size) - as nan-tagged mem_slice_val (offset: 25 bits, size: 25 bits)
+M_STORE takes 3 parameters:  slice, index, value  -> pop value, pop index, peek slice -> writes value at index to memory slice. Important, slice(offset,size) remains on stack!
+
 */
 
 pub const PUSH_U32: u8 = 0x01;
@@ -84,3 +91,6 @@ pub const LT: u8 = 0x17; // "less than" - [left,right] returns true only if left
 pub const GT: u8 = 0x18; // "greater than" - [left,right] returns true only if left is greater than right
 
 pub const JUMP_IF_FALSE: u8 = 0x19; //
+
+pub const M_SLICE: u8 = 0x1a;
+pub const M_STORE: u8 = 0x1b;

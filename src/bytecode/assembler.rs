@@ -174,6 +174,12 @@ pub fn assemble(
             "GT" => {
                 bytecode.push(GT);
             }
+            "M_SLICE" => {
+                bytecode.push(M_SLICE);
+            }
+            "M_STORE" => {
+                bytecode.push(M_STORE);
+            }
             _ => {
                 return Err(VMError::UnknownOpcode {
                     opcode: token.to_string(),

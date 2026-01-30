@@ -28,6 +28,7 @@ pub struct VM {
     pool: StringPool,
     instructions_pool: InstructionsPool,
     call_stack: CallStack,
+    memory: Vec<Value>,
 }
 
 /// VM is NOT thread-safe.
@@ -55,6 +56,7 @@ impl VM {
             pool,
             instructions_pool: vm_instructions,
             call_stack,
+            memory: Vec::new(),
         })
     }
 
@@ -62,6 +64,19 @@ impl VM {
         self.storage
             .resolve_task(id, &self.pool, &self.instructions_pool)
     }
+
+    pub fn return_memory<'b>(&'b mut self, offset: u32, size: u32) -> VMResult<Vec<Return<'b>>> {
+        let start = offset as usize;
+        let mut end = start + size as usize;
+        let mem_len = self.memory.len();
+        if mem_len < end {
+            end = mem_len;
+        }
+        let mem_slice = &self.memory[start..end];
+        dbg!(mem_len);
+        self.unbox(mem_slice)
+    }
+
     // for test purposes, probably remove later
     pub fn disassemble_bytecode(&self) -> VMResult<String> {
         let bytecode_ref = self
@@ -84,7 +99,7 @@ impl VM {
         let mut pc = self.call_stack.last().ok_or(VMError::StackUnderflow)?.pc;
         let mut instructions = self.instructions_pool.get(instructions_ref as usize)?;
         while let Some(&op) = instructions.get(pc) {
-            //println!("After {:?}: stack = {:?}", op, self.stack);
+            // println!("After {:?}: stack = {:?}", op, self.stack);
             pc += 1;
             //dbg!(&self.stack.len());
             match op {
@@ -221,7 +236,7 @@ impl VM {
                 JUMP_IF_FALSE => {
                     if self.stack.pop()? == FALSE_VAL {
                         let val = prepare_u32_from_be_checked(instructions, pc)?;
-                        dbg!(&val);
+                        //dbg!(&val);
                         pc = val as usize;
                     } else {
                         // skiping jump destination which is u32 ie 4 bytes
@@ -263,6 +278,29 @@ impl VM {
                     let right = self.stack.pop()?;
                     let left = self.stack.pop()?;
                     self.stack.push(value_cmp(left, right, false)?)?;
+                }
+
+                M_SLICE => {
+                    let size = to_u32(self.stack.pop()?);
+                    let offset = to_u32(self.stack.pop()?);
+                    // check bounds and add error MemorySliceSizeExceed
+                    self.stack.push(to_mem_slice_val(offset, size)?)?;
+                }
+
+                M_STORE => {
+                    let val = self.stack.pop()?;
+                    let idx_in_slice = to_u32(self.stack.pop()?);
+                    let memslice_val = self.stack.last().ok_or(VMError::StackUnderflow)?;
+                    let (offset, size) = to_mem_slice(memslice_val)?;
+                    if idx_in_slice >= size {
+                        return Err(VMError::MemSliceSizeExceeded);
+                    }
+                    let absolute_idx = (offset + idx_in_slice) as usize;
+                    // resizes & fills with 0s . Probaly fill with Null?
+                    if absolute_idx >= self.memory.len() {
+                        self.memory.resize(absolute_idx as usize + 1, 0);
+                    }
+                    self.memory[absolute_idx as usize] = val;
                 }
 
                 //drops if true
@@ -316,9 +354,8 @@ impl VM {
     }
     // unbox NaN-boxed values on stack.
     //
-    pub fn unbox<'a>(&'a self, stack: Stack) -> VMResult<Vec<Return<'a>>> {
+    pub fn unbox<'a>(&'a self, stack: &[Value]) -> VMResult<Vec<Return<'a>>> {
         stack
-            .as_slice()
             .iter()
             .map(|&v| match get_value_type(v)? {
                 ValueType::U32 => Ok(Return::U32(to_u32(v))),
@@ -331,6 +368,10 @@ impl VM {
                         &self.pool,
                         &self.instructions_pool,
                     )?))
+                }
+                ValueType::MemSlice => {
+                    let (offset, size) = to_mem_slice(v)?;
+                    Ok(Return::MemSlice(offset, size))
                 }
             })
             .collect()

@@ -15,6 +15,8 @@ pub enum VMError {
     WriteError,
     StackOverflow,
 
+    // Memory errors
+    MemSliceSizeExceeded,
     //tagged values errors
     TypeMismatch,
     InvalidType,

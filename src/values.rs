@@ -16,16 +16,23 @@ STRING_REF = 4
 CALLDATA_REF = 5
 U32 = 6
 
-maybe SIGN_BIT with no TAGS for obj pointer? do not see a need
+
+MEM_SLICE tuple (u25,u25)
+
+    1        -   11111111111 11   - 0000000000000000000000000 - 0000000000000000000000000
+ SIGN_BIT(1) -    QNAN BITS(13)   -         OFFSET(25)        -         SIZE(25)
 
 */
 
 use crate::errors::{VMError, VMResult};
 
 pub type Value = u64;
+
+const U25_MAX: u32 = 1 << 25;
 // quite NaN - if all those bits set => NaN tagged value of some type
 // 0111111111111100000000000000000000000000000000000000000000000000
 const QNAN: u64 = 0x7ffc000000000000;
+const SIGN_BIT: u64 = 0x8000000000000000;
 const TAG_MASK: u64 = 0b111;
 //reserve 1 tag for none
 const TAG_FALSE: u64 = 2;
@@ -35,6 +42,18 @@ const TAG_CALLDATA: u64 = 5;
 const TAG_U32: u64 = 6;
 pub(crate) const FALSE_VAL: Value = QNAN | (TAG_FALSE);
 pub(crate) const TRUE_VAL: Value = QNAN | (TAG_TRUE);
+
+// mem_slice tuple type that is (u25,u25)
+//
+#[inline]
+pub(crate) const fn to_mem_slice_val(offset: u32, size: u32) -> VMResult<Value> {
+    // u25 max check
+    if offset < U25_MAX && size < U25_MAX {
+        Ok((SIGN_BIT | QNAN) | ((offset as u64) << 25) | (size as u64))
+    } else {
+        Err(VMError::InvalidType)
+    }
+}
 
 //shifting 18 bits (unused(15) + tag (3))
 #[inline]
@@ -62,6 +81,11 @@ const fn to_bool_val(b: bool) -> Value {
 }
 
 // check if tagged
+
+#[inline]
+const fn is_mem_slice(v: Value) -> bool {
+    (v) & (QNAN | SIGN_BIT) == (QNAN | SIGN_BIT)
+}
 
 #[inline]
 const fn is_qnan(v: Value) -> bool {
@@ -117,6 +141,17 @@ pub(crate) const fn to_u32(v: Value) -> u32 {
     // unused 15 bits  + tag bits 3
 }
 
+#[inline]
+pub(crate) const fn to_mem_slice(v: Value) -> VMResult<(u32, u32)> {
+    if is_mem_slice(v) {
+        let offset = ((v >> 25) & 0x1FFFFFF) as u32;
+        let size = (v & 0x1FFFFFF) as u32;
+        Ok((offset, size))
+    } else {
+        Err(VMError::InvalidType)
+    }
+}
+
 pub(crate) fn value_eq(left: Value, right: Value) -> VMResult<Value> {
     let tag_left = tag(left)?;
     let tag_right = tag(right)?;
@@ -153,9 +188,13 @@ pub(crate) enum ValueType {
     String,
     CallData,
     Bool,
+    MemSlice,
 }
 
 pub(crate) fn get_value_type(nan_boxed_val: Value) -> VMResult<ValueType> {
+    if is_mem_slice(nan_boxed_val) {
+        return Ok(ValueType::MemSlice);
+    }
     match tag(nan_boxed_val)? {
         TAG_U32 => Ok(ValueType::U32),
         TAG_STRING => Ok(ValueType::String),
@@ -171,6 +210,7 @@ pub enum Return<'a> {
     String(&'a str),
     CallData(String),
     Bool(bool),
+    MemSlice(u32, u32),
 }
 
 impl<'a> Return<'a> {
@@ -197,6 +237,13 @@ impl<'a> Return<'a> {
     pub fn as_bool(&self) -> VMResult<bool> {
         match self {
             Return::Bool(b) => Ok(*b),
+            _ => Err(VMError::TypeMismatch),
+        }
+    }
+
+    pub fn as_mem_slice(&self) -> VMResult<(u32, u32)> {
+        match self {
+            Return::MemSlice(o, s) => Ok((*o, *s)),
             _ => Err(VMError::TypeMismatch),
         }
     }
