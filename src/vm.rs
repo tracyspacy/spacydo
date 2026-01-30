@@ -65,16 +65,18 @@ impl VM {
             .resolve_task(id, &self.pool, &self.instructions_pool)
     }
 
-    pub fn return_memory<'b>(&'b mut self, offset: u32, size: u32) -> VMResult<Vec<Return<'b>>> {
+    pub fn return_memory<'a>(
+        &'a mut self,
+        offset: u32,
+        size: u32,
+    ) -> impl Iterator<Item = VMResult<Return<'a>>> + 'a {
         let start = offset as usize;
         let mut end = start + size as usize;
         let mem_len = self.memory.len();
         if mem_len < end {
             end = mem_len;
         }
-        let mem_slice = &self.memory[start..end];
-        dbg!(mem_len);
-        self.unbox(mem_slice)
+        self.memory[start..end].iter().map(|&v| self.unbox_value(v))
     }
 
     // for test purposes, probably remove later
@@ -352,28 +354,31 @@ impl VM {
         // self.stack.drain(..)
         Ok(std::mem::take(&mut self.stack))
     }
-    // unbox NaN-boxed values on stack.
-    //
-    pub fn unbox<'a>(&'a self, stack: &[Value]) -> VMResult<Vec<Return<'a>>> {
-        stack
-            .iter()
-            .map(|&v| match get_value_type(v)? {
-                ValueType::U32 => Ok(Return::U32(to_u32(v))),
-                ValueType::Bool => Ok(Return::Bool(v == TRUE_VAL)),
-                ValueType::String => Ok(Return::String(self.pool.resolve(to_u32(v) as usize)?)),
-                ValueType::CallData => {
-                    let bytecode = self.instructions_pool.get(to_u32(v) as usize)?;
-                    Ok(Return::CallData(disassemble(
-                        bytecode,
-                        &self.pool,
-                        &self.instructions_pool,
-                    )?))
-                }
-                ValueType::MemSlice => {
-                    let (offset, size) = to_mem_slice(v)?;
-                    Ok(Return::MemSlice(offset, size))
-                }
-            })
-            .collect()
+    #[inline]
+    fn unbox_value<'a>(&'a self, val: Value) -> VMResult<Return<'a>> {
+        match get_value_type(val)? {
+            ValueType::U32 => Ok(Return::U32(to_u32(val))),
+            ValueType::Bool => Ok(Return::Bool(val == TRUE_VAL)),
+            ValueType::String => Ok(Return::String(self.pool.resolve(to_u32(val) as usize)?)),
+            ValueType::CallData => {
+                let bytecode = self.instructions_pool.get(to_u32(val) as usize)?;
+                Ok(Return::CallData(disassemble(
+                    bytecode,
+                    &self.pool,
+                    &self.instructions_pool,
+                )?))
+            }
+            ValueType::MemSlice => {
+                let (offset, size) = to_mem_slice(val)?;
+                Ok(Return::MemSlice(offset, size))
+            }
+        }
+    }
+
+    pub fn unbox<'a>(
+        &'a self,
+        values: &'a Stack,
+    ) -> impl Iterator<Item = VMResult<Return<'a>>> + 'a {
+        values.as_slice().iter().map(|&v| self.unbox_value(v))
     }
 }
