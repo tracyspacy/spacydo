@@ -51,7 +51,7 @@ pub(crate) const fn to_mem_slice_val(offset: u32, size: u32) -> VMResult<Value> 
     if offset < U25_MAX && size < U25_MAX {
         Ok((SIGN_BIT | QNAN) | ((offset as u64) << 25) | (size as u64))
     } else {
-        Err(VMError::InvalidType)
+        Err(VMError::MemSliceSizeExceeded)
     }
 }
 

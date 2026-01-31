@@ -16,6 +16,7 @@ pub enum VMError {
     StackOverflow,
 
     // Memory errors
+    // probably better name
     MemSliceSizeExceeded,
     //tagged values errors
     TypeMismatch,

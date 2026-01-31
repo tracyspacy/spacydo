@@ -175,6 +175,34 @@ fn test_drop_if_false() {
     assert_eq!(unboxed[0].as_u32().unwrap(), 999);
 }
 
+//memory test
+#[test]
+#[serial] //?
+fn test_write_memory() {
+    // memory slice 0..100 => in loop 0..100 fills slice with loop index  => stack contains slice (0,100) , memory vec![0..100]
+    let mut vm = VM::init("PUSH_U32 0 PUSH_U32 100 M_SLICE PUSH_U32 100 PUSH_U32 0 DO LOOP_INDEX LOOP_INDEX M_STORE LOOP").unwrap();
+    let stack = vm.run().unwrap();
+    let unboxed = vm.unbox(&stack).collect::<VMResult<Vec<_>>>().unwrap();
+    assert_eq!(unboxed[0].as_mem_slice().unwrap(), (0, 100));
+    let memory: Vec<u32> = vm
+        .return_memory(0, 100)
+        .map(|r| r.unwrap().as_u32().unwrap())
+        .collect();
+    let right: Vec<u32> = (0..100).collect();
+    dbg!(&memory);
+    dbg!(&right);
+    assert_eq!(memory, right);
+}
+
+#[test]
+#[serial]
+// max mem lsice size value is 2^25-1
+fn test_write_memory_error() {
+    let mut vm = VM::init("PUSH_U32 0 PUSH_U32 33554432 M_SLICE").unwrap();
+    let err = vm.run();
+    assert!(matches!(err, Err(VMError::MemSliceSizeExceeded)));
+}
+
 #[test]
 #[serial]
 fn test_create_task() {
@@ -318,7 +346,7 @@ fn test_malformed_calldata_missing_start_bracket() {
 #[serial] //?
 fn test_malformed_if_then_missing_if() {
     let result = VM::init("PUSH_U32 1 PUSH_U32 1 EQ PUSH_U32 3 THEN");
-    assert!(matches!(result, Err(VMError::StackUnderflow { .. })));
+    assert!(matches!(result, Err(VMError::StackUnderflow)));
 }
 
 #[test]
@@ -347,7 +375,6 @@ fn test_invalid_status() {
     let ops = "PUSH_STRING Task PUSH_STATUS 99 PUSH_CALLDATA [ ] T_CREATE";
     let mut vm = VM::init(ops).unwrap();
     let result = vm.run();
-
     assert!(matches!(result, Err(VMError::InvalidStatus(99))));
 }
 
