@@ -69,7 +69,7 @@ impl VM {
         &'a mut self,
         offset: u32,
         size: u32,
-    ) -> impl Iterator<Item = VMResult<Return<'a>>> + 'a {
+    ) -> impl Iterator<Item = VMResult<Return<'a>>> {
         let start = offset as usize;
         let mut end = start + size as usize;
         let mem_len = self.memory.len();
@@ -375,10 +375,7 @@ impl VM {
         }
     }
 
-    pub fn unbox<'a>(
-        &'a self,
-        values: &'a Stack,
-    ) -> impl Iterator<Item = VMResult<Return<'a>>> + 'a {
+    pub fn unbox<'a>(&'a self, values: &'a Stack) -> impl Iterator<Item = VMResult<Return<'a>>> {
         values.as_slice().iter().map(|&v| self.unbox_value(v))
     }
 }
