@@ -1,10 +1,14 @@
 use crate::bytecode::{helpers::*, opcodes::*};
+use crate::inlinevec::InlineVec;
 use crate::pools::{InstructionsPool, StringPool};
 use crate::{VMError, VMResult};
-
 use std::fmt::Write;
 
 const EMPTY: [u8; 0] = [];
+
+// make configurabe and put in same place with ControlStack and CallStack
+const JUMP_STACK_LIMIT: usize = 2;
+type JumpStack = InlineVec<u32, JUMP_STACK_LIMIT>;
 
 pub fn disassemble(
     bytecode: &[u8],
@@ -13,7 +17,7 @@ pub fn disassemble(
 ) -> VMResult<String> {
     let mut result = String::new();
     let mut pc: usize = 0;
-    let mut jump_dest_stack: Vec<u32> = Vec::new();
+    let mut jump_dest_stack: JumpStack = JumpStack::default();
     while pc < bytecode.len() {
         let op = bytecode[pc];
         pc += 1;
@@ -52,7 +56,7 @@ pub fn disassemble(
 
             JUMP_IF_FALSE => {
                 result.push_str("IF ");
-                jump_dest_stack.push(prepare_u32_from_be_checked(bytecode, pc)?);
+                jump_dest_stack.push(prepare_u32_from_be_checked(bytecode, pc)?)?;
                 pc += 4;
             }
 
@@ -92,14 +96,16 @@ pub fn disassemble(
             NEQ => result.push_str("NEQ "),
             LT => result.push_str("LT "),
             GT => result.push_str("GT "),
+            M_SLICE => result.push_str("M_SLICE "),
+            M_STORE => result.push_str("M_STORE "),
             _ => {}
         }
 
         //checking if pc is eq to position of then word
-        while let Some(&dest) = jump_dest_stack.last() {
+        while let Some(dest) = jump_dest_stack.last() {
             if dest as usize == pc {
                 result.push_str("THEN ");
-                jump_dest_stack.pop();
+                jump_dest_stack.pop()?;
             } else {
                 break;
             }

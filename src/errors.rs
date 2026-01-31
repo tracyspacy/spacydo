@@ -9,16 +9,15 @@ pub enum VMError {
     InvalidStringIndex(usize),
     InvalidInstructionsIndex(usize),
 
+    //add context?
     // Stack errors
     StackUnderflow,
     WriteError,
     StackOverflow,
 
-    // Control flow errors to add later
-
-    //CallStackOverflow,
-    //CallStackUnderflow,
-
+    // Memory errors
+    // probably better name
+    MemSliceSizeExceeded,
     //tagged values errors
     TypeMismatch,
     InvalidType,

@@ -1,5 +1,6 @@
 use crate::bytecode::opcodes::*;
 use crate::errors::{VMError, VMResult};
+use crate::inlinevec::InlineVec;
 use crate::pools::{InstructionsPool, StringPool};
 
 fn next_token<'a>(
@@ -13,6 +14,10 @@ fn next_token<'a>(
     })
 }
 
+// make configurabe and put in same place with ControlStack and CallStack
+const JUMP_STACK_LIMIT: usize = 2;
+type JumpStack = InlineVec<u32, JUMP_STACK_LIMIT>;
+
 pub fn assemble(
     src: &str,
     string_pool: &mut StringPool,
@@ -20,7 +25,8 @@ pub fn assemble(
 ) -> VMResult<Vec<u8>> {
     let mut tokens = src.split_whitespace().enumerate();
     let mut bytecode: Vec<u8> = Vec::new();
-    let mut jump_dest_stack: Vec<u32> = Vec::new();
+    // check on assembly nested ifs
+    let mut jump_dest_stack: JumpStack = JumpStack::default();
     while let Some((i, token)) = tokens.next() {
         match token {
             "PUSH_U32" => {
@@ -59,13 +65,11 @@ pub fn assemble(
 
             "IF" => {
                 bytecode.push(JUMP_IF_FALSE);
-                jump_dest_stack.push(bytecode.len() as u32);
+                jump_dest_stack.push(bytecode.len() as u32)?;
                 bytecode.extend_from_slice(&0u32.to_be_bytes());
             }
             "THEN" => {
-                let jump_dest = jump_dest_stack.pop().ok_or(VMError::MalformedIfThen {
-                    context: ("Missing IF"),
-                })?;
+                let jump_dest = jump_dest_stack.pop()?;
                 let upd_dest = bytecode.len() as u32;
                 bytecode[jump_dest as usize..jump_dest as usize + 4]
                     .copy_from_slice(&upd_dest.to_be_bytes());
@@ -169,6 +173,12 @@ pub fn assemble(
             }
             "GT" => {
                 bytecode.push(GT);
+            }
+            "M_SLICE" => {
+                bytecode.push(M_SLICE);
+            }
+            "M_STORE" => {
+                bytecode.push(M_STORE);
             }
             _ => {
                 return Err(VMError::UnknownOpcode {

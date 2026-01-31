@@ -1,5 +1,6 @@
 mod bytecode;
 mod errors;
+mod inlinevec;
 mod pools;
 mod storage;
 mod values;
