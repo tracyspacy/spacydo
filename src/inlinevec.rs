@@ -5,7 +5,7 @@
 #[derive(Debug)]
 pub struct InlineVec<T, const C: usize> {
     len: u32,
-    pub array: [T; C],
+    array: [T; C],
 }
 
 use crate::errors::{VMError, VMResult};
