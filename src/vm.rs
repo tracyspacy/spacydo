@@ -275,6 +275,7 @@ impl VM {
                     let size = to_u32(self.stack.pop()?);
                     let offset = to_u32(self.stack.pop()?);
                     // check bounds and add error MemorySliceSizeExceed
+                    // probably auto fill with NULL val?
                     self.stack.push(to_mem_slice_val(offset, size)?)?;
                 }
 
@@ -290,9 +291,9 @@ impl VM {
                         });
                     }
                     let absolute_idx = (offset + idx_in_slice) as usize;
-                    // resizes & fills with 0s . Probaly fill with Null?
+                    // resizes & fills with NULL.
                     if absolute_idx >= self.memory.len() {
-                        self.memory.resize(absolute_idx as usize + 1, 0);
+                        self.memory.resize(absolute_idx as usize + 1, NULL_VAL);
                     }
                     self.memory[absolute_idx as usize] = val;
                 }
@@ -363,6 +364,7 @@ impl VM {
                 let (offset, size) = to_mem_slice(val)?;
                 Ok(Return::MemSlice(offset, size))
             }
+            ValueType::Null => Ok(Return::Null),
         }
     }
 

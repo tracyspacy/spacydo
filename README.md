@@ -74,6 +74,27 @@ let memory_values: Vec<u32> = vm
         .map(|r| r.unwrap().as_u32().unwrap())
         .collect();
 
+
+// example with memory write containing Null values
+
+let ops_mem_null_vals = "PUSH_U32 0 PUSH_U32 5 M_SLICE PUSH_U32 1 PUSH_U32 1 M_STORE PUSH_U32 3 PUSH_U32 3 M_STORE";
+
+let mut vm = VM::init(ops_mem)?;
+let raw_stack = vm.run()?;
+
+// get memslice offset and size (offset,size) = (0,5,)
+let (offset, size) = vm.unbox(&raw_stack).next().unwrap()?.as_mem_slice()?;
+
+// returns  vec![Return::Null, Return::U32(1), Return::Null, Return::U32(3),]
+let memory = vm.return_memory(offset, size).collect::<VMResult<Vec<_>>>()?; 
+
+// returns [1,3]
+let filtered: Vec<u32> = vm.return_memory(offset, size).filter_map(|r| match r.unwrap() {
+            Return::U32(val) => Some(val),
+            _ => None,
+        })
+        .collect();
+
 ```
 
 

@@ -1,5 +1,5 @@
 use serial_test::serial;
-use spacydo::{Task, TaskStatus, VM, VMError, VMResult};
+use spacydo::{Return, Task, TaskStatus, VM, VMError, VMResult};
 use std::fs;
 
 fn clear_storage() {
@@ -192,6 +192,31 @@ fn test_write_memory() {
     dbg!(&memory);
     dbg!(&right);
     assert_eq!(memory, right);
+}
+
+#[test]
+#[serial]
+fn test_write_memory_null_vals() {
+    let mut vm = VM::init(
+        "PUSH_U32 0 PUSH_U32 5 M_SLICE PUSH_U32 1 PUSH_U32 1 M_STORE PUSH_U32 3 PUSH_U32 3 M_STORE",
+    )
+    .unwrap();
+    let raw_stack = vm.run().unwrap();
+    let (offset, size) = vm
+        .unbox(&raw_stack)
+        .next()
+        .unwrap()
+        .unwrap()
+        .as_mem_slice()
+        .unwrap();
+    let memory = vm
+        .return_memory(offset, size)
+        .collect::<VMResult<Vec<_>>>()
+        .unwrap();
+    assert_eq!(
+        memory,
+        vec![Return::Null, Return::U32(1), Return::Null, Return::U32(3),]
+    );
 }
 
 #[test]

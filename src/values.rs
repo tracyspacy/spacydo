@@ -34,7 +34,7 @@ const U25_MAX: u32 = 1 << 25;
 const QNAN: u64 = 0x7ffc000000000000;
 const SIGN_BIT: u64 = 0x8000000000000000;
 const TAG_MASK: u64 = 0b111;
-//reserve 1 tag for none
+const TAG_NULL: u64 = 1;
 const TAG_FALSE: u64 = 2;
 const TAG_TRUE: u64 = 3;
 const TAG_STRING: u64 = 4;
@@ -42,6 +42,7 @@ const TAG_CALLDATA: u64 = 5;
 const TAG_U32: u64 = 6;
 pub(crate) const FALSE_VAL: Value = QNAN | (TAG_FALSE);
 pub(crate) const TRUE_VAL: Value = QNAN | (TAG_TRUE);
+pub(crate) const NULL_VAL: Value = QNAN | (TAG_NULL);
 
 // mem_slice tuple type that is (u25,u25)
 //
@@ -174,6 +175,7 @@ pub(crate) enum ValueType {
     CallData,
     Bool,
     MemSlice,
+    Null,
 }
 
 pub(crate) fn get_value_type(nan_boxed_val: Value) -> VMResult<ValueType> {
@@ -185,17 +187,19 @@ pub(crate) fn get_value_type(nan_boxed_val: Value) -> VMResult<ValueType> {
         TAG_STRING => Ok(ValueType::String),
         TAG_CALLDATA => Ok(ValueType::CallData),
         TAG_FALSE | TAG_TRUE => Ok(ValueType::Bool),
+        TAG_NULL => Ok(ValueType::Null),
         _ => Err(VMError::InvalidType),
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum Return<'a> {
     U32(u32),
     String(&'a str),
     CallData(String),
     Bool(bool),
     MemSlice(u32, u32),
+    Null,
 }
 
 impl<'a> Return<'a> {
