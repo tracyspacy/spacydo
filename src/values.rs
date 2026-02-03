@@ -48,10 +48,12 @@ pub(crate) const TRUE_VAL: Value = QNAN | (TAG_TRUE);
 #[inline]
 pub(crate) const fn to_mem_slice_val(offset: u32, size: u32) -> VMResult<Value> {
     // u25 max check
+    let _a: [u32; 10] = [1; 10];
+
     if offset < U25_MAX && size < U25_MAX {
         Ok((SIGN_BIT | QNAN) | ((offset as u64) << 25) | (size as u64))
     } else {
-        Err(VMError::MemSliceSizeExceeded)
+        Err(VMError::MSliceParamOverflow)
     }
 }
 
@@ -108,23 +110,6 @@ const fn tag(v: Value) -> VMResult<u64> {
 #[inline]
 const fn bool_not(v: Value) -> Value {
     v ^ 1
-}
-
-// keep for now
-// converting last bit to 1 for FALSE_VAL makes it TRUE_VAL , notthing for TRUE_VAL. If resulting val != TRUE_VAL => not a boolean
-const fn is_bool_val(v: Value) -> bool {
-    is_qnan(v) && (v | 1) == TRUE_VAL
-}
-
-// keep for now
-#[inline]
-const fn is_string_val(v: Value) -> bool {
-    is_qnan(v) && raw_tag(v) == TAG_STRING
-}
-// keep for now
-#[inline]
-const fn is_calldata_val(v: Value) -> bool {
-    is_qnan(v) && raw_tag(v) == TAG_CALLDATA
 }
 
 #[inline]

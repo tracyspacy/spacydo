@@ -121,10 +121,6 @@ impl Storage {
             .ok_or(VMError::TaskNotFound(id))
     }
 
-    pub(crate) fn exists(&self, id: u64) -> bool {
-        matches!(self.tasks_vm.get(id as usize), Some(Some(_)))
-    }
-
     pub(crate) fn len(&self) -> usize {
         self.alive
     }

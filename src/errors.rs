@@ -1,4 +1,4 @@
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub enum VMError {
     // Storage errors
     TaskNotFound(u32),
@@ -17,7 +17,11 @@ pub enum VMError {
 
     // Memory errors
     // probably better name
-    MemSliceSizeExceeded,
+    MSliceParamOverflow,
+    MSliceOutOfBounds {
+        index: u32,
+        size: u32,
+    },
     //tagged values errors
     TypeMismatch,
     InvalidType,

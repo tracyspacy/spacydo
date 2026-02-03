@@ -35,9 +35,6 @@ impl<T: Default + Copy, const C: usize> InlineVec<T, C> {
     pub(crate) const fn is_full(&self) -> bool {
         self.len() == self.capacity()
     }
-    pub(crate) const fn remaining_capacity(&self) -> usize {
-        self.capacity() - self.len()
-    }
     pub(crate) fn push(&mut self, val: T) -> VMResult<()> {
         if self.is_full() {
             return Err(VMError::StackOverflow);

@@ -91,8 +91,6 @@ impl VM {
     }
 
     pub fn run(&mut self) -> VMResult<Stack> {
-        //std::vec::Drain<'_, u64>
-        // check this
         let mut instructions_ref = self
             .call_stack
             .last()
@@ -115,7 +113,6 @@ impl VM {
                     let val = prepare_u32_from_be_checked(instructions, pc)?;
                     // push_stack(&mut self.stack, to_string_val(val))?;
                     self.stack.push(to_string_val(val))?;
-
                     pc += 4; //magic number
                 }
                 PUSH_CALLDATA => {
@@ -127,20 +124,14 @@ impl VM {
 
                 PUSH_STATUS | PUSH_TASK_FIELD => {
                     let val = instructions[pc] as u32;
-                    // push_stack(&mut self.stack, to_u32_val(val))?; //safer get fn
                     self.stack.push(to_u32_val(val))?;
                     pc += 1;
                 }
 
                 T_CREATE => {
-                    //let instructions_ref = to_u32(pop_stack(&mut self.stack)?);
                     let instructions_ref = to_u32(self.stack.pop()?);
-                    //let raw_status = to_u32(pop_stack(&mut self.stack)?);
                     let raw_status = to_u32(self.stack.pop()?);
-
                     let status = TaskStatus::try_from(raw_status)?;
-
-                    // let title = to_u32(pop_stack(&mut self.stack)?);
                     let title = to_u32(self.stack.pop()?);
                     let id = self.storage.next_id;
 
@@ -155,12 +146,10 @@ impl VM {
                 }
 
                 T_GET_FIELD => {
-                    // let field_byte = to_u32(pop_stack(&mut self.stack)?);
                     let field_byte = to_u32(self.stack.pop()?);
                     let field = TaskField::try_from(field_byte)?;
-                    //let id = to_u32(pop_stack(&mut self.stack)?);
                     let id = to_u32(self.stack.pop()?);
-                    let task = &self.storage.get(id)?; // handle error
+                    let task = &self.storage.get(id)?;
                     match field {
                         TaskField::Title => self.stack.push(to_string_val(task.title))?,
                         TaskField::Status => self.stack.push(to_u32_val(task.status as u32))?,
@@ -295,7 +284,10 @@ impl VM {
                     let memslice_val = self.stack.last().ok_or(VMError::StackUnderflow)?;
                     let (offset, size) = to_mem_slice(memslice_val)?;
                     if idx_in_slice >= size {
-                        return Err(VMError::MemSliceSizeExceeded);
+                        return Err(VMError::MSliceOutOfBounds {
+                            index: idx_in_slice,
+                            size,
+                        });
                     }
                     let absolute_idx = (offset + idx_in_slice) as usize;
                     // resizes & fills with 0s . Probaly fill with Null?
@@ -351,7 +343,6 @@ impl VM {
                 _ => {}
             }
         }
-        // self.stack.drain(..)
         Ok(std::mem::take(&mut self.stack))
     }
     #[inline]

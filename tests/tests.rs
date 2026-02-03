@@ -200,7 +200,7 @@ fn test_write_memory() {
 fn test_write_memory_error() {
     let mut vm = VM::init("PUSH_U32 0 PUSH_U32 33554432 M_SLICE").unwrap();
     let err = vm.run();
-    assert!(matches!(err, Err(VMError::MemSliceSizeExceeded)));
+    assert!(matches!(err, Err(VMError::MSliceParamOverflow)));
 }
 
 #[test]

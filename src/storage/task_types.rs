@@ -31,7 +31,7 @@ impl TaskVM {
 
         Ok(Self {
             id: task.id,
-            title: title_idx as u32,
+            title: title_idx,
             status: task.status,
             instructions_ref: inst_ref,
         })
