@@ -101,7 +101,8 @@ let filtered: Vec<u32> = vm.return_memory(offset, size).filter_map(|r| match r.u
 
 ### Recent updates:
 - VM now uses NaN-boxing technique - see [values.rs](src/values.rs)
-- All stack values are 64-bit (`u64`), but they encode 5 distinct types:
+- All stack values are 64-bit (`u64`), but they encode 6 distinct types:
+  - `Null`
   - Boolean (`TRUE_VAL`, `FALSE_VAL`)
   - `STRING_VAL`
   - `CALLDATA_VAL` 

@@ -9,7 +9,7 @@ idea
  SIGN_BIT(1) -    QNAN BITS(13)   -              PAYLOAD(32)         - UNUSED(15)      - TAG BITS(3)
 
 TAGS:
-NONE = 1 (reserved)
+NULL = 1
 FALSE = 2
 TRUE = 3
 STRING_REF = 4
