@@ -293,13 +293,12 @@ fn test_set_task_field_status() {
 #[serial]
 fn test_delete_task() {
     clear_storage();
-    let ops = "PUSH_STRING TaskToDelete PUSH_STATUS 2 PUSH_CALLDATA [ ] T_CREATE S_LEN \
-                   PUSH_U32 0 T_DELETE S_LEN";
+    let ops = "PUSH_STRING TaskToDelete PUSH_STATUS 2 PUSH_CALLDATA [ ] T_CREATE \
+                   PUSH_U32 0 T_DELETE";
     let mut vm = VM::init(ops).unwrap();
-    let stack = vm.run().unwrap();
-    let unboxed = vm.unbox(&stack).collect::<VMResult<Vec<_>>>().unwrap();
-    let stack_u32: Vec<u32> = unboxed.iter().map(|v| v.as_u32().unwrap()).collect();
-    assert_eq!(stack_u32, vec![1, 0]); // 1 task after task create and 0 tasks remain after delete
+    let _stack = vm.run().unwrap();
+    let result = vm.print_task(0);
+    assert!(matches!(result, Err(VMError::TaskNotFound(0))));
 }
 
 #[test]

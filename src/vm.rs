@@ -149,7 +149,7 @@ impl VM {
                     let field_byte = to_u32(self.stack.pop()?);
                     let field = TaskField::try_from(field_byte)?;
                     let id = to_u32(self.stack.pop()?);
-                    let task = &self.storage.get(id)?;
+                    let task = &self.storage.get(id).ok_or(VMError::TaskNotFound(id))?;
                     match field {
                         TaskField::Title => self.stack.push(to_string_val(task.title))?,
                         TaskField::Status => self.stack.push(to_u32_val(task.status as u32))?,
@@ -309,26 +309,26 @@ impl VM {
                 CALL => {
                     let id = to_u32(self.stack.pop()?);
 
-                    let task = &self.storage.get(id)?;
+                    if let Some(task) = &self.storage.get(id) {
+                        if let Some(caller_frame) = self.call_stack.last_mut() {
+                            caller_frame.pc = pc;
+                        }
 
-                    if let Some(caller_frame) = self.call_stack.last_mut() {
-                        caller_frame.pc = pc;
-                    }
+                        let frame = InstructionsFrame {
+                            instructions_ref: task.instructions_ref,
+                            pc: 0,
+                        };
 
-                    let frame = InstructionsFrame {
-                        instructions_ref: task.instructions_ref,
-                        pc: 0,
-                    };
-
-                    if !self
-                        .instructions_pool
-                        .get(task.instructions_ref as usize)?
-                        .is_empty()
-                    {
-                        let _ = self.call_stack.push(frame);
-                        instructions_ref = frame.instructions_ref;
-                        instructions = self.instructions_pool.get(instructions_ref as usize)?;
-                        pc = frame.pc;
+                        if !self
+                            .instructions_pool
+                            .get(task.instructions_ref as usize)?
+                            .is_empty()
+                        {
+                            let _ = self.call_stack.push(frame);
+                            instructions_ref = frame.instructions_ref;
+                            instructions = self.instructions_pool.get(instructions_ref as usize)?;
+                            pc = frame.pc;
+                        }
                     }
                 }
                 END_CALL => {

@@ -4,6 +4,12 @@ use crate::storage::task_types::{Task, TaskVM};
 use serde::{Deserialize, Serialize};
 use std::fs::File;
 
+/*
+StorageData (tasks:Vec<Task>) is dense ->  stores only non-deleted tasks.
+Storage (Vec<Option<TaskVM>>) is the in-memory representation, and is sparse (reconstructed during self.load(), where deleted tasks/gaps are None ):
+task_vm format is: [None,Some(TaskVM{id=1}),None,Some(TaskVM{id=3})] Thus task_vm.id is same as index in Vec.
+*/
+
 #[derive(Debug)]
 pub(crate) struct Storage {
     tasks_vm: Vec<Option<TaskVM>>,
@@ -45,7 +51,7 @@ impl Storage {
         string_pool: &StringPool,
         instructions_pool: &InstructionsPool,
     ) -> VMResult<Task> {
-        let task_vm = &self.get(id)?;
+        let task_vm = self.get(id).ok_or(VMError::TaskNotFound(id))?;
         task_vm.to_task(string_pool, instructions_pool)
     }
 
@@ -107,11 +113,8 @@ impl Storage {
         Err(VMError::TaskNotFound(id))
     }
 
-    pub(crate) fn get(&self, id: u32) -> VMResult<&TaskVM> {
-        self.tasks_vm
-            .get(id as usize)
-            .and_then(|opt| opt.as_ref())
-            .ok_or(VMError::TaskNotFound(id))
+    pub(crate) fn get(&self, id: u32) -> Option<&TaskVM> {
+        self.tasks_vm.get(id as usize).and_then(|opt| opt.as_ref())
     }
 
     pub(crate) fn get_mut(&mut self, id: u32) -> VMResult<&mut TaskVM> {
@@ -121,7 +124,9 @@ impl Storage {
             .ok_or(VMError::TaskNotFound(id))
     }
 
+    //rename to capacity + add alive (non-deleted tasks)
+    // returns len of sparse storage (Vec<Option<TaskVM>>)
     pub(crate) fn len(&self) -> usize {
-        self.alive
+        self.tasks_vm.len()
     }
 }
