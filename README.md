@@ -118,7 +118,7 @@ let filtered: Vec<u32> = vm.return_memory(offset, size).filter_map(|r| match r.u
 
 **Instruction categories:**
 
-**Stack Operations**: `PUSH_U32`, `PUSH_STRING`, `PUSH_CALLDATA`, `DUP`, `SWAP`, `DROP_IF`
+**Stack Operations**: `PUSH_U32`, `PUSH_STRING`, `PUSH_CALLDATA`, `DUP`, `SWAP`, `DROP`
 
 **Task Operations**: `T_CREATE`, `T_GET_FIELD`, `T_SET_FIELD`, `T_DELETE`
 

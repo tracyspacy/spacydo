@@ -153,8 +153,8 @@ pub fn assemble(
             "END_CALL" => {
                 bytecode.push(END_CALL);
             }
-            "DROP_IF" => {
-                bytecode.push(DROP_IF);
+            "DROP" => {
+                bytecode.push(DROP);
             }
             "DUP" => {
                 bytecode.push(DUP);

@@ -298,12 +298,8 @@ impl VM {
                     self.memory[absolute_idx as usize] = val;
                 }
 
-                //drops if true
-                DROP_IF => {
-                    let condition = self.stack.pop()?;
-                    if condition == TRUE_VAL {
-                        self.stack.pop()?;
-                    }
+                DROP => {
+                    self.stack.pop()?;
                 }
 
                 CALL => {

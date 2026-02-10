@@ -161,7 +161,7 @@ fn test_gt_true() {
 #[test]
 #[serial] //?
 fn test_drop_if_true() {
-    let mut vm = VM::init("PUSH_U32 999 PUSH_U32 2 PUSH_U32 1 GT DROP_IF").unwrap();
+    let mut vm = VM::init("PUSH_U32 999 PUSH_U32 2 PUSH_U32 1 GT IF DROP THEN").unwrap();
     let stack = vm.run().unwrap();
     assert_eq!(stack.as_slice(), []); // 999 was dropped
 }
@@ -169,7 +169,7 @@ fn test_drop_if_true() {
 #[test]
 #[serial] //?
 fn test_drop_if_false() {
-    let mut vm = VM::init("PUSH_U32 999 PUSH_U32 2 PUSH_U32 3 GT DROP_IF").unwrap();
+    let mut vm = VM::init("PUSH_U32 999 PUSH_U32 2 PUSH_U32 3 GT IF DROP THEN").unwrap();
     let stack = vm.run().unwrap();
     let unboxed = vm.unbox(&stack).collect::<VMResult<Vec<_>>>().unwrap();
     assert_eq!(unboxed[0].as_u32().unwrap(), 999);
@@ -457,7 +457,7 @@ fn test_conditional_task_filtering() {
     clear_storage();
     let ops = "PUSH_STRING TargetTask PUSH_STATUS 2 PUSH_CALLDATA [ ] T_CREATE \
                    PUSH_U32 0 DUP PUSH_TASK_FIELD 0 T_GET_FIELD \
-                   PUSH_STRING TargetTask EQ DROP_IF";
+                   PUSH_STRING TargetTask EQ IF DROP THEN";
     let mut vm = VM::init(ops).unwrap();
     let stack = vm.run().unwrap();
     let stack_slice = stack.as_slice();

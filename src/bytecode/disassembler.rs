@@ -89,7 +89,7 @@ pub fn disassemble(
             LOOP_INDEX => result.push_str("LOOP_INDEX "),
             CALL => result.push_str("CALL "),
             END_CALL => result.push_str("END_CALL "),
-            DROP_IF => result.push_str("DROP_IF "),
+            DROP => result.push_str("DROP "),
             DUP => result.push_str("DUP "),
             SWAP => result.push_str("SWAP "),
             EQ => result.push_str("EQ "),

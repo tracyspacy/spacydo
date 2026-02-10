@@ -31,7 +31,7 @@ EQ - pop right -> pop left -> push True if equal or False if not
 NEQ - pop right -> pop left -> push True if not equal or False if equal
 LT - pop right -> pop left -> push True if left is less than right
 GT - pop right -> pop left -> push True if left is greater that right
-DROP_IF - pop condition (TRUE/FALSE) -> pop from stack if TRUE
+DROP - pop from stack
 
 ### STORAGE
 S_SAVE - Save all tasks to disk
@@ -80,8 +80,7 @@ pub const LOOP: u8 = 0x0e;
 pub const LOOP_INDEX: u8 = 0x0f;
 pub const CALL: u8 = 0x10;
 pub const END_CALL: u8 = 0x11;
-pub const DROP_IF: u8 = 0x12; //if last is true drops value
-//
+pub const DROP: u8 = 0x12; //
 pub const DUP: u8 = 0x13;
 pub const SWAP: u8 = 0x14;
 //
