@@ -1,9 +1,8 @@
 use crate::bytecode::{assembler::assemble, disassembler::disassemble};
 use crate::errors::{VMError, VMResult};
 use crate::pools::{InstructionsPool, StringPool};
-use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Clone)]
 pub struct Task {
     pub id: u32,
     pub title: String,
@@ -11,7 +10,7 @@ pub struct Task {
     pub instructions: String,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Clone)]
 pub(crate) struct TaskVM {
     pub id: u32,
     pub title: u32,
@@ -53,7 +52,7 @@ impl TaskVM {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum TaskStatus {
     NotComplete = 0,
     InProgress = 1,
@@ -73,7 +72,7 @@ impl TryFrom<u32> for TaskStatus {
     }
 }
 
-#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug)]
 pub enum TaskField {
     Title = 0,
     Status = 1,
@@ -91,4 +90,10 @@ impl TryFrom<u32> for TaskField {
             _ => Err(VMError::InvalidTaskField(v)),
         }
     }
+}
+
+#[derive(Debug)]
+pub(crate) struct StorageData {
+    pub(crate) tasks: Vec<Task>,
+    pub(crate) next_id: u32,
 }

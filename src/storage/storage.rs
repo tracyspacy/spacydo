@@ -1,8 +1,9 @@
 use crate::errors::{VMError, VMResult};
 use crate::pools::{InstructionsPool, StringPool};
-use crate::storage::task_types::{Task, TaskVM};
-use serde::{Deserialize, Serialize};
+use crate::storage::bincodec::{Decode, Encode};
+use crate::storage::task_types::{StorageData, Task, TaskVM};
 use std::fs::File;
+use std::io::BufWriter;
 
 /*
 StorageData (tasks:Vec<Task>) is dense ->  stores only non-deleted tasks.
@@ -17,12 +18,6 @@ pub(crate) struct Storage {
     alive: usize,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
-pub(crate) struct StorageData {
-    tasks: Vec<Task>,
-    next_id: u32,
-}
-
 /// storage is NOT thread-safe!
 impl Storage {
     pub(crate) fn save(
@@ -31,6 +26,8 @@ impl Storage {
         instructions_pool: &InstructionsPool,
     ) -> VMResult<()> {
         let f = File::create("tasks.bin").map_err(|_| VMError::StorageWriteError)?;
+        //do we need buffer? values are relatively small
+        let mut writer = BufWriter::new(f);
         let mut tasks = Vec::with_capacity(self.alive);
         for task_vm in self.tasks_vm.iter().flatten() {
             tasks.push(task_vm.to_task(string_pool, instructions_pool)?);
@@ -41,7 +38,7 @@ impl Storage {
             next_id: self.next_id,
         };
         //add context?
-        bincode::serialize_into(f, &data).map_err(|_| VMError::StorageWriteError)?;
+        data.encode(&mut writer)?;
         Ok(())
     }
 
@@ -58,7 +55,7 @@ impl Storage {
     pub(crate) fn load(pool: &mut StringPool, op_pool: &mut InstructionsPool) -> VMResult<Self> {
         use std::io::ErrorKind;
         let data: StorageData = match File::open("tasks.bin") {
-            Ok(file) => bincode::deserialize_from(file).map_err(|_| VMError::StorageReadError)?,
+            Ok(mut file) => StorageData::decode(&mut file)?,
             Err(e) if e.kind() == ErrorKind::NotFound => StorageData {
                 tasks: Vec::new(),
                 next_id: 0,
