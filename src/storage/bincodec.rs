@@ -37,15 +37,57 @@ impl Encode for u8 {
 
 impl Encode for u16 {
     fn encode<W: Write>(&self, w: &mut W) -> VMResult<()> {
-        w.write_all(&self.to_le_bytes())
-            .map_err(|_| VMError::StorageWriteError)
+        let max_bits = 1 + self.checked_ilog2().unwrap_or(0);
+        match max_bits {
+            0..=8 => {
+                let size_bytes: u8 = 1;
+                w.write_all(&[size_bytes])
+                    .map_err(|_| VMError::StorageWriteError)?;
+                w.write_all(&[*self as u8])
+                    .map_err(|_| VMError::StorageWriteError)?;
+            }
+            _ => {
+                let size_bytes: u8 = 2;
+                w.write_all(&[size_bytes])
+                    .map_err(|_| VMError::StorageWriteError)?;
+                w.write_all(&self.to_le_bytes())
+                    .map_err(|_| VMError::StorageWriteError)?;
+            }
+        }
+        Ok(())
     }
 }
 
+// need to write compact - if u32 is <= u8 -> write as single byte
+// to determine amount of bits needed we can use (log2(value)+1)
+// idea is to provide byte size as u8 len val [LEN:u8][VAL]
 impl Encode for u32 {
     fn encode<W: Write>(&self, w: &mut W) -> VMResult<()> {
-        w.write_all(&self.to_le_bytes())
-            .map_err(|_| VMError::StorageWriteError)
+        let max_bits = 1 + self.checked_ilog2().unwrap_or(0);
+        match max_bits {
+            0..=8 => {
+                let size_bytes: u8 = 1;
+                w.write_all(&[size_bytes])
+                    .map_err(|_| VMError::StorageWriteError)?;
+                w.write_all(&[*self as u8])
+                    .map_err(|_| VMError::StorageWriteError)?;
+            }
+            9..=16 => {
+                let size_bytes: u8 = 2;
+                w.write_all(&[size_bytes])
+                    .map_err(|_| VMError::StorageWriteError)?;
+                w.write_all(&(*self as u16).to_le_bytes())
+                    .map_err(|_| VMError::StorageWriteError)?;
+            }
+            _ => {
+                let size_bytes: u8 = 4;
+                w.write_all(&[size_bytes])
+                    .map_err(|_| VMError::StorageWriteError)?;
+                w.write_all(&self.to_le_bytes())
+                    .map_err(|_| VMError::StorageWriteError)?;
+            }
+        }
+        Ok(())
     }
 }
 
@@ -126,19 +168,54 @@ impl Decode for u8 {
 
 impl Decode for u16 {
     fn decode<R: Read>(r: &mut R) -> VMResult<Self> {
-        let mut buf = [0u8; 2];
-        r.read_exact(&mut buf)
+        let mut bytes = [0u8; 1];
+        r.read_exact(&mut bytes)
             .map_err(|_| VMError::StorageReadError)?;
-        Ok(u16::from_le_bytes(buf))
+        match bytes[0] {
+            1 => {
+                let mut bytes = [0u8; 1];
+                r.read_exact(&mut bytes)
+                    .map_err(|_| VMError::StorageReadError)?;
+                Ok(bytes[0] as u16)
+            }
+            2 => {
+                let mut bytes = [0u8; 2];
+                r.read_exact(&mut bytes)
+                    .map_err(|_| VMError::StorageReadError)?;
+                Ok(u16::from_le_bytes(bytes))
+            }
+            _ => Err(VMError::StorageReadError),
+        }
     }
 }
 
 impl Decode for u32 {
     fn decode<R: Read>(r: &mut R) -> VMResult<Self> {
-        let mut buf = [0u8; 4];
-        r.read_exact(&mut buf)
+        let mut bytes = [0u8; 1];
+        r.read_exact(&mut bytes)
             .map_err(|_| VMError::StorageReadError)?;
-        Ok(u32::from_le_bytes(buf))
+        match bytes[0] {
+            1 => {
+                let mut bytes = [0u8; 1];
+                r.read_exact(&mut bytes)
+                    .map_err(|_| VMError::StorageReadError)?;
+                Ok(bytes[0] as u32)
+            }
+            2 => {
+                let mut bytes = [0u8; 2];
+                r.read_exact(&mut bytes)
+                    .map_err(|_| VMError::StorageReadError)?;
+                Ok(u16::from_le_bytes(bytes) as u32)
+            }
+            4 => {
+                let mut bytes = [0u8; 4];
+                r.read_exact(&mut bytes)
+                    .map_err(|_| VMError::StorageReadError)?;
+                Ok(u32::from_le_bytes(bytes))
+            }
+
+            _ => Err(VMError::StorageReadError),
+        }
     }
 }
 
@@ -148,7 +225,7 @@ impl Decode for String {
         let mut buf = vec![0u8; len as usize];
         r.read_exact(&mut buf)
             .map_err(|_| VMError::StorageReadError)?;
-        // returns wrong error
+        // add new error type utf8 conversion error
         String::from_utf8(buf).map_err(|_| VMError::StorageReadError)
     }
 }
