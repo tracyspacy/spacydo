@@ -14,6 +14,10 @@ use crate::errors::{VMError, VMResult};
 use crate::storage::task_types::{StorageData, Task, TaskStatus};
 use std::io::{Read, Write};
 
+const U8_BYTES: u8 = 1;
+const U16_BYTES: u8 = 2;
+const U32_BYTES: u8 = 4;
+
 pub trait Encode {
     fn encode<W: Write>(&self, w: &mut W) -> VMResult<()>;
 }
@@ -66,22 +70,19 @@ impl Encode for u32 {
         let max_bits = 1 + self.checked_ilog2().unwrap_or(0);
         match max_bits {
             0..=8 => {
-                let size_bytes: u8 = 1;
-                w.write_all(&[size_bytes])
+                w.write_all(&[U8_BYTES])
                     .map_err(|_| VMError::StorageWriteError)?;
                 w.write_all(&[*self as u8])
                     .map_err(|_| VMError::StorageWriteError)?;
             }
             9..=16 => {
-                let size_bytes: u8 = 2;
-                w.write_all(&[size_bytes])
+                w.write_all(&[U16_BYTES])
                     .map_err(|_| VMError::StorageWriteError)?;
                 w.write_all(&(*self as u16).to_le_bytes())
                     .map_err(|_| VMError::StorageWriteError)?;
             }
             _ => {
-                let size_bytes: u8 = 4;
-                w.write_all(&[size_bytes])
+                w.write_all(&[U32_BYTES])
                     .map_err(|_| VMError::StorageWriteError)?;
                 w.write_all(&self.to_le_bytes())
                     .map_err(|_| VMError::StorageWriteError)?;
@@ -172,14 +173,14 @@ impl Decode for u16 {
         r.read_exact(&mut bytes)
             .map_err(|_| VMError::StorageReadError)?;
         match bytes[0] {
-            1 => {
-                let mut bytes = [0u8; 1];
+            U8_BYTES => {
+                let mut bytes = [0u8; U8_BYTES as usize];
                 r.read_exact(&mut bytes)
                     .map_err(|_| VMError::StorageReadError)?;
                 Ok(bytes[0] as u16)
             }
-            2 => {
-                let mut bytes = [0u8; 2];
+            U16_BYTES => {
+                let mut bytes = [0u8; U16_BYTES as usize];
                 r.read_exact(&mut bytes)
                     .map_err(|_| VMError::StorageReadError)?;
                 Ok(u16::from_le_bytes(bytes))
@@ -195,20 +196,20 @@ impl Decode for u32 {
         r.read_exact(&mut bytes)
             .map_err(|_| VMError::StorageReadError)?;
         match bytes[0] {
-            1 => {
-                let mut bytes = [0u8; 1];
+            U8_BYTES => {
+                let mut bytes = [0u8; U8_BYTES as usize];
                 r.read_exact(&mut bytes)
                     .map_err(|_| VMError::StorageReadError)?;
                 Ok(bytes[0] as u32)
             }
-            2 => {
-                let mut bytes = [0u8; 2];
+            U16_BYTES => {
+                let mut bytes = [0u8; U16_BYTES as usize];
                 r.read_exact(&mut bytes)
                     .map_err(|_| VMError::StorageReadError)?;
                 Ok(u16::from_le_bytes(bytes) as u32)
             }
-            4 => {
-                let mut bytes = [0u8; 4];
+            U32_BYTES => {
+                let mut bytes = [0u8; U32_BYTES as usize];
                 r.read_exact(&mut bytes)
                     .map_err(|_| VMError::StorageReadError)?;
                 Ok(u32::from_le_bytes(bytes))
