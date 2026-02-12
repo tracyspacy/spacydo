@@ -22,6 +22,7 @@ const U32_BYTES: u8 = 4;
 // while m_slice offset and size limit (u25,u25)
 // probably is still too large  (1 << 25) - 1 = 33_554_431
 // for safety reasons better to have smaller limit
+// 1_000_000 is still dangerous, need storage max size check and limit
 const VEC_LIMIT: usize = 1_000_000;
 
 pub trait Encode {
@@ -47,7 +48,7 @@ impl Encode for u8 {
 
 // need to write compact - if u32 is <= u8 -> write as single byte
 // to determine amount of bits needed we can use (log2(value)+1)
-// idea is to provide byte size as u8 len val [LEN:u8][VAL]
+// idea is to provide byte size as u8 len val [LEN:u8][VAL u8 | VAL u16 | VAL u32]
 impl Encode for u32 {
     fn encode<W: Write>(&self, w: &mut W) -> VMResult<()> {
         let max_bits = 1 + self.checked_ilog2().unwrap_or(0);
@@ -81,7 +82,7 @@ impl Encode for String {
         let bytes = self.as_bytes();
         let len = bytes.len();
         if len > u16::MAX as usize {
-            return Err(VMError::StorageSizeTooBigError);
+            return Err(VMError::StorageSizeTooBig);
         }
         // directly encoding len as u16
         w.write_all(&(len as u16).to_le_bytes())
@@ -95,7 +96,7 @@ impl Encode for Vec<Task> {
     fn encode<W: Write>(&self, w: &mut W) -> VMResult<()> {
         let len = self.len();
         if len > VEC_LIMIT {
-            return Err(VMError::StorageSizeTooBigError);
+            return Err(VMError::StorageSizeTooBig);
         }
         (len as u32).encode(w)?;
         for item in self {
@@ -195,8 +196,7 @@ impl Decode for String {
         let mut buf = vec![0u8; len];
         r.read_exact(&mut buf)
             .map_err(|_| VMError::StorageReadError)?;
-        // add new error type utf8 conversion error
-        String::from_utf8(buf).map_err(|_| VMError::StorageReadError)
+        String::from_utf8(buf).map_err(|_| VMError::StorageUTF8ConversionFailed)
     }
 }
 
@@ -204,7 +204,7 @@ impl Decode for Vec<Task> {
     fn decode<R: Read>(r: &mut R) -> VMResult<Self> {
         let len = u32::decode(r)? as usize;
         if len > VEC_LIMIT {
-            return Err(VMError::StorageSizeTooBigError);
+            return Err(VMError::StorageSizeTooBig);
         }
         let mut buf = Vec::with_capacity(len);
         for _ in 0..len {

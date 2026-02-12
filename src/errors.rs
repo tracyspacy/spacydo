@@ -4,7 +4,9 @@ pub enum VMError {
     TaskNotFound(u32),
     StorageWriteError,
     StorageReadError,
-    StorageSizeTooBigError,
+    StorageSizeTooBig,
+    StorageUTF8ConversionFailed,
+
     // Pool errors
     InvalidStringIndex(usize),
     InvalidInstructionsIndex(usize),
