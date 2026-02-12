@@ -18,6 +18,12 @@ const U8_BYTES: u8 = 1;
 const U16_BYTES: u8 = 2;
 const U32_BYTES: u8 = 4;
 
+//hardcoded size limit for vec
+// while m_slice offset and size limit (u25,u25)
+// probably is still too large  (1 << 25) - 1 = 33_554_431
+// for safety reasons better to have smaller limit
+const VEC_LIMIT: usize = 1_000_000;
+
 pub trait Encode {
     fn encode<W: Write>(&self, w: &mut W) -> VMResult<()>;
 }
@@ -87,9 +93,11 @@ impl Encode for String {
 // format similar to default bincode : le [len+values_bytes]
 impl Encode for Vec<Task> {
     fn encode<W: Write>(&self, w: &mut W) -> VMResult<()> {
-        let len = self.len() as u32;
-        //need limit
-        len.encode(w)?;
+        let len = self.len();
+        if len > VEC_LIMIT {
+            return Err(VMError::StorageSizeTooBigError);
+        }
+        (len as u32).encode(w)?;
         for item in self {
             item.encode(w)?;
         }
@@ -194,9 +202,11 @@ impl Decode for String {
 
 impl Decode for Vec<Task> {
     fn decode<R: Read>(r: &mut R) -> VMResult<Self> {
-        let len = u32::decode(r)?;
-        //need limit and check
-        let mut buf = Vec::with_capacity(len as usize);
+        let len = u32::decode(r)? as usize;
+        if len > VEC_LIMIT {
+            return Err(VMError::StorageSizeTooBigError);
+        }
+        let mut buf = Vec::with_capacity(len);
         for _ in 0..len {
             buf.push(Task::decode(r)?);
         }
