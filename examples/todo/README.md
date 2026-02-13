@@ -33,4 +33,6 @@ example: `cargo run -- add HidableTask -calldata hide 1` Where 1 is task id of t
 
 Name aliases for instructions could be changed to any.
 New instructions could be add.
+![todo_either](https://github.com/user-attachments/assets/6da88ad1-6df3-4445-b529-5824343ea7fb)
+
  
