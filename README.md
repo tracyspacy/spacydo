@@ -6,7 +6,7 @@ Imagine a simple todo app with just 4 CRUD primitives (create, read, update, del
 
 Spacydo makes this possible because tasks contain executable code. This means a minimal client with 4 primitive functions can have unlimited features - each task programs its own behavior.
 
-##### Concept:Minimal task model + programmable behaviour.
+### Concept:Minimal task model + programmable behaviour.
 
 While the instruction set is minimal, it already demonstrates powerful programmable functionality. Not only can basic task creation, deletion, and filtering be unique or customized, tasks can have their own executable instructions, enabling programmable behavior for each task:
 - filtering tasks based on conditions
@@ -97,21 +97,14 @@ let filtered: Vec<u32> = vm.return_memory(offset, size).filter_map(|r| match r.u
 
 ```
 
+### Implementation Details
+- **NaN-boxing** — All stack values are 64-bit (`u64`) encoding 6 distinct types (`Null`, Boolean(`TRUE_VAL`,`FALSE_VAL`), `STRING_VAL`, `CALLDATA_VAL`, `U32_VAL`, `MEM_SLICE_VAL`  (offset: 25 bits, size: 25 bits)). See [values.rs](src/values.rs).
 
+- **InlineVec** — Fixed-size array-backed vector implementation used for stack, control stack, call stack, and jump stack with specified limits. See [inlinevec.rs](src/inlinevec.rs).
 
-### Recent updates:
-- VM now uses NaN-boxing technique - see [values.rs](src/values.rs)
-- All stack values are 64-bit (`u64`), but they encode 6 distinct types:
-  - `Null`
-  - Boolean (`TRUE_VAL`, `FALSE_VAL`)
-  - `STRING_VAL`
-  - `CALLDATA_VAL` 
-  - `U32_VAL`
-  - `MEM_SLICE_VAL` - (offset: 25 bits, size: 25 bits) 
-- Added `InlineVec` - a vector-like backed by fixed size array data structure. Stack, control stack, call stack, jump stack now use InlineVec with specified limits
-- VM has memory now (heap). Memory is simple Vec<Value>, grows dynamically, but technically length is restricted by mem_slice_val format: 25 bits payload for offset and size  
-- new tests added
+- **Dynamic Memory/Heap** — growable Vec<Value> heap; memory slices use 25-bit offset and 25-bit size fields (limited by MEM_SLICE_VAL).
 
+- **Zero dependencies** — Custom binary encoding/decoding implementation. See [bincodec.rs](src/storage/bincodec.rs).
 
 
 **Instruction set with description is here: [opcodes.rs](src/bytecode/opcodes.rs)**
