@@ -31,12 +31,11 @@ Task that create a subtask when called:
 
 Potentially, a todo client based on spacydo could be extensible through programming rather than constrained by a fixed feature set, allowing developers and users to define task behavior through adding or modifying instructions.
 
-While it would benefit from a dedicated examples section, the best way to play with it right now is the tests:
-```
-cargo test
-```
+### Examples
 
-### Example:
+[See here](./examples/) for practical examples.
+
+
 
 ```
 let ops = "PUSH_U32 2 PUSH_U32 2 EQ IF PUSH_U32 3 THEN PUSH_U32 4 PUSH_STRING HELLO PUSH_U32 42 PUSH_U32 42 EQ PUSH_CALLDATA [ PUSH_U32 11 END_CALL ]";
