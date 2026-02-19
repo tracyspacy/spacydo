@@ -37,14 +37,21 @@ pub fn disassemble(
                 result.push(' ');
                 pc += 4;
             }
-            PUSH_STATUS => {
-                result.push_str("PUSH_STATUS ");
+            PUSH_STATE => {
+                result.push_str("PUSH_STATE ");
                 let v = prepare_u8(bytecode, pc)?;
                 write!(&mut result, "{} ", v).map_err(|_| VMError::WriteError)?;
                 //result.push((b'0' + v) as char);
                 //result.push(' ');
                 pc += 1;
             }
+            PUSH_MAX_STATES => {
+                result.push_str("PUSH_MAX_STATES ");
+                let v = prepare_u8(bytecode, pc)?;
+                write!(&mut result, "{} ", v).map_err(|_| VMError::WriteError)?;
+                pc += 1;
+            }
+
             PUSH_TASK_FIELD => {
                 result.push_str("PUSH_TASK_FIELD ");
                 let v = prepare_u8(bytecode, pc)?;

@@ -30,6 +30,7 @@ pub enum VMError {
 
     // Bytecode errors
     EmptyInstructions,
+    MaxStatesError,
     InvalidStatus(u32),
     InvalidTaskField(u32),
     UnexpectedEOB,

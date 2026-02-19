@@ -1,5 +1,5 @@
 use serial_test::serial;
-use spacydo::{Return, Task, TaskStatus, VM, VMError, VMResult};
+use spacydo::{Return, Task, TaskState, VM, VMError, VMResult};
 use std::fs;
 
 fn clear_storage() {
@@ -232,26 +232,26 @@ fn test_write_memory_error() {
 #[serial]
 fn test_create_task() {
     clear_storage();
-    let ops = "PUSH_STRING TestTask PUSH_STATUS 0 PUSH_CALLDATA [ ] T_CREATE";
+    let ops = "PUSH_STRING TestTask PUSH_MAX_STATES 3 PUSH_CALLDATA [ ] T_CREATE";
     let mut vm = VM::init(ops).unwrap();
     vm.run().unwrap();
     let printed_task = vm.print_task(0).unwrap();
     let test_task = Task {
         id: 0,
         title: "TestTask".to_string(),
-        status: TaskStatus::NotComplete,
+        state: TaskState { len: 3, state: 0 },
         instructions: "".to_string(),
     };
     assert_eq!(test_task.id, printed_task.id);
     assert_eq!(test_task.title, printed_task.title);
-    assert_eq!(test_task.status, printed_task.status);
+    assert_eq!(test_task.state, printed_task.state);
 }
 
 #[test]
 #[serial]
 fn test_get_task_field_title() {
     clear_storage();
-    let ops = "PUSH_STRING MyTask1 PUSH_STATUS 2 PUSH_CALLDATA [ ] T_CREATE \
+    let ops = "PUSH_STRING MyTask1 PUSH_MAX_STATES 2 PUSH_CALLDATA [ ] T_CREATE \
                    PUSH_U32 0 PUSH_TASK_FIELD 0 T_GET_FIELD";
     let mut vm = VM::init(ops).unwrap();
     let stack = vm.run().unwrap();
@@ -266,22 +266,22 @@ fn test_get_task_field_title() {
 #[serial]
 fn test_get_task_field_status() {
     clear_storage();
-    let ops = "PUSH_STRING MyTask1 PUSH_STATUS 0 PUSH_CALLDATA [ ] T_CREATE \
+    let ops = "PUSH_STRING MyTask1 PUSH_MAX_STATES 3 PUSH_CALLDATA [ ] T_CREATE \
                    PUSH_U32 0 PUSH_TASK_FIELD 1 T_GET_FIELD";
     let mut vm = VM::init(ops).unwrap();
     let stack = vm.run().unwrap();
     let unboxed = vm.unbox(&stack).collect::<VMResult<Vec<_>>>().unwrap();
     assert_eq!(unboxed[0].as_u32().unwrap(), 0);
     let test_task = vm.print_task(0).unwrap();
-    assert_eq!(test_task.status, TaskStatus::NotComplete); //same as previous NotComplete == 0
+    assert_eq!(test_task.state.state, 0); //same as previous NotComplete == 0
 }
 
 #[test]
 #[serial]
 fn test_set_task_field_status() {
     clear_storage();
-    let ops = "PUSH_STRING TestTask PUSH_STATUS 0 PUSH_CALLDATA [ ] T_CREATE \
-                   PUSH_STATUS 2 PUSH_U32 0 PUSH_TASK_FIELD 1 T_SET_FIELD \
+    let ops = "PUSH_STRING TestTask PUSH_MAX_STATES 3 PUSH_CALLDATA [ ] T_CREATE \
+                   PUSH_STATE 2 PUSH_U32 0 PUSH_TASK_FIELD 1 T_SET_FIELD \
                    PUSH_U32 0 PUSH_TASK_FIELD 1 T_GET_FIELD";
     let mut vm = VM::init(ops).unwrap();
     let stack = vm.run().unwrap();
@@ -293,7 +293,7 @@ fn test_set_task_field_status() {
 #[serial]
 fn test_delete_task() {
     clear_storage();
-    let ops = "PUSH_STRING TaskToDelete PUSH_STATUS 2 PUSH_CALLDATA [ ] T_CREATE \
+    let ops = "PUSH_STRING TaskToDelete PUSH_MAX_STATES 3 PUSH_CALLDATA [ ] T_CREATE \
                    PUSH_U32 0 T_DELETE";
     let mut vm = VM::init(ops).unwrap();
     let _stack = vm.run().unwrap();
@@ -305,7 +305,7 @@ fn test_delete_task() {
 #[serial]
 fn test_task_with_simple_calldata() {
     clear_storage();
-    let ops = "PUSH_STRING TestTask PUSH_STATUS 2 \
+    let ops = "PUSH_STRING TestTask PUSH_MAX_STATES 3 \
                PUSH_CALLDATA [ PUSH_U32 42 END_CALL ] T_CREATE \
                PUSH_U32 0 DUP CALL"; // DUP is to keep task id
     let mut vm = VM::init(ops).unwrap();
@@ -396,7 +396,8 @@ fn test_eoi_calldata_missing_end_bracket() {
 #[test]
 #[serial] //?
 fn test_invalid_status() {
-    let ops = "PUSH_STRING Task PUSH_STATUS 99 PUSH_CALLDATA [ ] T_CREATE";
+    let ops = "PUSH_STRING Task PUSH_MAX_STATES 3 PUSH_CALLDATA [ ] T_CREATE \
+        PUSH_STATE 99 PUSH_U32 0 PUSH_TASK_FIELD 1 T_SET_FIELD";
     let mut vm = VM::init(ops).unwrap();
     let result = vm.run();
     assert!(matches!(result, Err(VMError::InvalidStatus(99))));
@@ -455,7 +456,7 @@ fn test_invalid_type_lt() {
 #[serial]
 fn test_conditional_task_filtering() {
     clear_storage();
-    let ops = "PUSH_STRING TargetTask PUSH_STATUS 2 PUSH_CALLDATA [ ] T_CREATE \
+    let ops = "PUSH_STRING TargetTask PUSH_MAX_STATES 3 PUSH_CALLDATA [ ] T_CREATE \
                    PUSH_U32 0 DUP PUSH_TASK_FIELD 0 T_GET_FIELD \
                    PUSH_STRING TargetTask EQ IF DROP THEN";
     let mut vm = VM::init(ops).unwrap();
@@ -470,9 +471,9 @@ fn test_conditional_task_filtering() {
 #[serial]
 fn test_multiple_tasks_iteration() {
     clear_storage();
-    let ops = "PUSH_STRING A PUSH_STATUS 0 PUSH_CALLDATA [ ] T_CREATE \
-                   PUSH_STRING B PUSH_STATUS 0 PUSH_CALLDATA [ ] T_CREATE \
-                   PUSH_STRING C PUSH_STATUS 0 PUSH_CALLDATA [ ] T_CREATE \
+    let ops = "PUSH_STRING A PUSH_MAX_STATES 3 PUSH_CALLDATA [ ] T_CREATE \
+                   PUSH_STRING B PUSH_MAX_STATES 4 PUSH_CALLDATA [ ] T_CREATE \
+                   PUSH_STRING C PUSH_MAX_STATES 5 PUSH_CALLDATA [ ] T_CREATE \
                    S_LEN PUSH_U32 0 DO LOOP_INDEX LOOP";
     let mut vm = VM::init(ops).unwrap();
     let stack = vm.run().unwrap();
@@ -486,8 +487,8 @@ fn test_multiple_tasks_iteration() {
 fn test_task_creates_subtask() {
     clear_storage();
     // Task with calldata that creates another task
-    let ops = "PUSH_STRING Parent PUSH_STATUS 2 \
-               PUSH_CALLDATA [ PUSH_STRING Child PUSH_STATUS 0 PUSH_CALLDATA [ ] T_CREATE END_CALL ] \
+    let ops = "PUSH_STRING Parent PUSH_MAX_STATES 3 \
+               PUSH_CALLDATA [ PUSH_STRING Child PUSH_MAX_STATES 2 PUSH_CALLDATA [ ] T_CREATE END_CALL ] \
                T_CREATE \
                PUSH_U32 0 CALL \
                S_LEN";
@@ -503,8 +504,8 @@ fn test_save_and_load() {
     clear_storage();
     // Create and save 2 tasks
     {
-        let ops = "PUSH_STRING Task1 PUSH_STATUS 2 PUSH_CALLDATA [ ] T_CREATE \
-                       PUSH_STRING Task2 PUSH_STATUS 1 PUSH_CALLDATA [ ] T_CREATE \
+        let ops = "PUSH_STRING Task1 PUSH_MAX_STATES 3 PUSH_CALLDATA [ ] T_CREATE \
+                       PUSH_STRING Task2 PUSH_MAX_STATES 2 PUSH_CALLDATA [ ] T_CREATE \
                        S_SAVE";
         let mut vm = VM::init(ops).unwrap();
         vm.run().unwrap();
@@ -524,9 +525,9 @@ fn test_delete_complex() {
     clear_storage();
     // Create and save 3 tasks
     {
-        let ops = "PUSH_STRING Task1 PUSH_STATUS 0 PUSH_CALLDATA [ ] T_CREATE \
-                       PUSH_STRING Task2 PUSH_STATUS 1 PUSH_CALLDATA [ ] T_CREATE \
-                       PUSH_STRING Task3 PUSH_STATUS 1 PUSH_CALLDATA [ ] T_CREATE
+        let ops = "PUSH_STRING Task1 PUSH_MAX_STATES 3 PUSH_CALLDATA [ ] T_CREATE \
+                       PUSH_STRING Task2 PUSH_MAX_STATES 3 PUSH_CALLDATA [ ] T_CREATE \
+                       PUSH_STRING Task3 PUSH_MAX_STATES 3 PUSH_CALLDATA [ ] T_CREATE
                        S_SAVE";
         let mut vm = VM::init(ops).unwrap();
         vm.run().unwrap();

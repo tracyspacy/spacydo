@@ -122,7 +122,7 @@ impl VM {
                     pc += 4; //magic number
                 }
 
-                PUSH_STATUS | PUSH_TASK_FIELD => {
+                PUSH_STATE | PUSH_MAX_STATES | PUSH_TASK_FIELD => {
                     let val = instructions[pc] as u32;
                     self.stack.push(to_u32_val(val))?;
                     pc += 1;
@@ -130,15 +130,17 @@ impl VM {
 
                 T_CREATE => {
                     let instructions_ref = to_u32(self.stack.pop()?);
-                    let raw_status = to_u32(self.stack.pop()?);
-                    let status = TaskStatus::try_from(raw_status)?;
+                    let max_states = to_u32(self.stack.pop()?);
+                    // while should not allow on assembly carefully check, if somehow allows bigger than u8 ->
+                    // -> it will trucate 3 msb and leave 1 full ie 255
+                    let state = TaskState::default(max_states as u8)?;
                     let title = to_u32(self.stack.pop()?);
                     let id = self.storage.next_id;
 
                     let task = TaskVM {
                         id,
                         title,
-                        status,
+                        state,
                         instructions_ref,
                     };
                     self.storage.add(task);
@@ -152,7 +154,9 @@ impl VM {
                     let task = &self.storage.get(id).ok_or(VMError::TaskNotFound(id))?;
                     match field {
                         TaskField::Title => self.stack.push(to_string_val(task.title))?,
-                        TaskField::Status => self.stack.push(to_u32_val(task.status as u32))?,
+                        TaskField::State => {
+                            self.stack.push(to_u32_val(task.state.get_state() as u32))?
+                        }
 
                         TaskField::Instructions => {
                             self.stack.push(to_calldata_val(task.instructions_ref))?
@@ -160,7 +164,7 @@ impl VM {
                     }
                 }
                 //maybe a bit confusing, that value to set to comes firts to be last to pop:
-                // PUSH_STATUS 2 - push status value, may be PUSH_STRING for title
+                // PUSH_STATE 2 - push status value, may be PUSH_STRING for title
                 // PUSH_U64 0 - push task id
                 // PUSH_TASK_FIELD 1 - push task field! to change
                 // T_SET_FIELD
@@ -172,9 +176,9 @@ impl VM {
                     let task = &mut self.storage.get_mut(id)?;
                     match field {
                         TaskField::Title => task.title = to_u32(self.stack.pop()?),
-                        TaskField::Status => {
+                        TaskField::State => {
                             let v = to_u32(self.stack.pop()?);
-                            task.status = TaskStatus::try_from(v)?;
+                            task.state.set_state(v)?
                         }
                         TaskField::Instructions => {
                             task.instructions_ref = to_u32(self.stack.pop()?);
