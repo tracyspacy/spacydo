@@ -18,13 +18,13 @@ While the instruction set is minimal, it already demonstrates powerful programma
 
 Creation of simple task without own executable instructions:
 ```
-PUSH_STRING TASK1 PUSH_STATUS 0  PUSH_CALLDATA [ ] T_CREATE
+PUSH_STRING TASK1 PUSH_MAX_STATES 2 PUSH_CALLDATA [ ] T_CREATE
 ```
 
 Task that create a subtask when called:
 
-```PUSH_STRING Parent PUSH_STATUS 0 \
-   PUSH_CALLDATA [ PUSH_STRING Child PUSH_STATUS 0 PUSH_CALLDATA [ ] T_CREATE END_CALL ] \
+```PUSH_STRING Parent PUSH_MAX_STATES 3 \
+   PUSH_CALLDATA [ PUSH_STRING Child PUSH_MAX_STATES 3 PUSH_CALLDATA [ ] T_CREATE END_CALL ] \
    T_CREATE \
    PUSH_U32 0 CALL
 ```
@@ -110,7 +110,7 @@ let filtered: Vec<u32> = vm.return_memory(offset, size).filter_map(|r| match r.u
 
 **Instruction categories:**
 
-**Stack Operations**: `PUSH_U32`, `PUSH_STRING`, `PUSH_CALLDATA`, `DUP`, `SWAP`, `DROP`
+**Stack Operations**: `PUSH_U32`, `PUSH_STRING`, `PUSH_CALLDATA`, `PUSH_STATE`, `PUSH_MAX_STATES`, `DUP`, `SWAP`, `DROP`
 
 **Task Operations**: `T_CREATE`, `T_GET_FIELD`, `T_SET_FIELD`, `T_DELETE`
 
