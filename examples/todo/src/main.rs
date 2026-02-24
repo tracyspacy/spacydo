@@ -1,14 +1,22 @@
-use spacydo::{Return, TaskStatus, VM, VMResult};
+use spacydo::{Return, VM, VMResult};
 use std::env;
 
+// while it is possible to create tasks with various states, in this example we hardcode 3 possible states
 // basic operations
 const LS: &str = "PUSH_U32 0 S_LEN M_SLICE S_LEN PUSH_U32 0 DO LOOP_INDEX LOOP_INDEX M_STORE LOOP";
 const SHOW: &str = "PUSH_U32 0 S_LEN M_SLICE S_LEN PUSH_U32 0 DO LOOP_INDEX DUP EQ LOOP_INDEX CALL IF LOOP_INDEX LOOP_INDEX M_STORE THEN LOOP";
 const CREATE_TASK: &str =
-    "PUSH_STRING %TITLE% PUSH_STATUS 0 PUSH_CALLDATA [ %INSTRUCTIONS% ] T_CREATE S_SAVE";
+    "PUSH_STRING %TITLE% PUSH_MAX_STATES 3 PUSH_CALLDATA [ %INSTRUCTIONS% ] T_CREATE S_SAVE";
 const SET_STATUS: &str =
-    "PUSH_STATUS %STATUS_VALUE% PUSH_U32 %ID% PUSH_TASK_FIELD 1 T_SET_FIELD S_SAVE";
+    "PUSH_STATE %STATE_VALUE% PUSH_U32 %ID% PUSH_TASK_FIELD 1 T_SET_FIELD S_SAVE";
 const DELETE_TASK: &str = "PUSH_U32 %ID% T_DELETE S_SAVE";
+
+#[derive(Clone, Copy)]
+enum TaskStatus {
+    NotComplete = 0,
+    InProgress = 1,
+    Complete = 2,
+}
 
 enum Command {
     Ls,
@@ -103,7 +111,7 @@ fn create_task_vm(title: &str, instructions: &str) -> String {
 fn set_status_vm(id: &str, status: &TaskStatus) -> String {
     SET_STATUS
         .replace("%ID%", id)
-        .replace("%STATUS_VALUE%", &(*status as u8).to_string())
+        .replace("%STATE_VALUE%", &(*status as u8).to_string())
 }
 
 fn delete_task_vm(id: &str) -> String {
@@ -129,10 +137,11 @@ fn show(instructions: &str) -> VMResult<()> {
 
     for id in task_ids {
         if let Ok(task) = vm.print_task(id) {
-            let status_display = match task.status {
-                spacydo::TaskStatus::NotComplete => "Not complete",
-                spacydo::TaskStatus::InProgress => "In Progress",
-                spacydo::TaskStatus::Complete => "Complete",
+            let status_display = match task.state.state {
+                0 => "Not complete",
+                1 => "In Progress",
+                2 => "Complete",
+                _ => unreachable!("Unknown state"),
             };
             println!("{:<4} {:<30} {:<15}", task.id, task.title, status_display);
         }
