@@ -11,7 +11,7 @@
 // ? we can use separate types for title and instructions , so we can encode them with different len - u8 for title and u16 for instructions
 
 use crate::errors::{VMError, VMResult};
-use crate::storage::task_types::{StorageData, Task, TaskStatus};
+use crate::storage::task_types::{StorageData, Task, TaskState};
 use std::io::{Read, Write};
 
 const U8_BYTES: u8 = 1;
@@ -29,12 +29,12 @@ pub trait Encode {
     fn encode<W: Write>(&self, w: &mut W) -> VMResult<()>;
 }
 /*
-we should encode u32,String, TaskStatus enum
+we should encode u32,String, TaskState struct
 
 pub struct Task {
     pub id: u32,
     pub title: String,
-    pub status: TaskStatus,
+    pub status: TaskState,
     pub instructions: String,
 }
 */
@@ -106,9 +106,10 @@ impl Encode for Vec<Task> {
     }
 }
 
-impl Encode for TaskStatus {
+impl Encode for TaskState {
     fn encode<W: Write>(&self, w: &mut W) -> VMResult<()> {
-        (*self as u8).encode(w)?;
+        self.len.encode(w)?;
+        self.state.encode(w)?;
         Ok(())
     }
 }
@@ -117,7 +118,7 @@ impl Encode for Task {
     fn encode<W: Write>(&self, w: &mut W) -> VMResult<()> {
         self.id.encode(w)?;
         self.title.encode(w)?;
-        self.status.encode(w)?;
+        self.state.encode(w)?;
         self.instructions.encode(w)?;
         Ok(())
     }
@@ -214,9 +215,12 @@ impl Decode for Vec<Task> {
     }
 }
 
-impl Decode for TaskStatus {
+impl Decode for TaskState {
     fn decode<R: Read>(r: &mut R) -> VMResult<Self> {
-        TaskStatus::try_from(u8::decode(r)? as u32)
+        Ok(TaskState {
+            len: (u8::decode(r))?,
+            state: (u8::decode(r))?,
+        })
     }
 }
 
@@ -225,7 +229,7 @@ impl Decode for Task {
         Ok(Task {
             id: u32::decode(r)?,
             title: String::decode(r)?,
-            status: TaskStatus::decode(r)?,
+            state: TaskState::decode(r)?,
             instructions: String::decode(r)?,
         })
     }

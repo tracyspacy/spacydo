@@ -44,9 +44,18 @@ pub fn assemble(
                 let idx = string_pool.intern_string(text.to_string());
                 bytecode.extend_from_slice(&idx.to_be_bytes());
             }
-            "PUSH_STATUS" => {
-                bytecode.push(PUSH_STATUS);
-                let (pos, text) = next_token(&mut tokens, i, "missing Tasks Status")?;
+            "PUSH_STATE" => {
+                bytecode.push(PUSH_STATE);
+                let (pos, text) = next_token(&mut tokens, i, "missing Tasks State")?;
+                let value = text.parse::<u8>().map_err(|_| VMError::InvalidUINT {
+                    command: pos,
+                    value: text.into(),
+                })?;
+                bytecode.push(value);
+            }
+            "PUSH_MAX_STATES" => {
+                bytecode.push(PUSH_MAX_STATES);
+                let (pos, text) = next_token(&mut tokens, i, "missing Max States value")?;
                 let value = text.parse::<u8>().map_err(|_| VMError::InvalidUINT {
                     command: pos,
                     value: text.into(),

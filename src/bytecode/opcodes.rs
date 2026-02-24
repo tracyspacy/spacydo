@@ -5,7 +5,9 @@
 
 PUSH_U32 <u32> - Push u32 value
 PUSH_STRING <String> - Push String value
-PUSH_STATUS <u32> - Push status value: 0-not complete 1 - in progress 2 -complete
+PUSH_STATE <u32> - Push state value
+PUSH_MAX_STATES <u32> - Push states len - ie amount of possible states
+example: PUSH_MAX_STATES 5 - means possible states are [0,1,2,3,4]
 PUSH_TASK_FIELD <u32> - Push task field value: 0 - title 1 -status 2- instructions
 PUSH_CALLDATA <String with format> - Push task own instructions. Should follow format : [ ] - for empty instructions,
 for non empty should end with END_CALL - PUSH_CALLDATA [ PUSH_U64 42 END_CALL ]
@@ -60,36 +62,38 @@ M_STORE takes 3 parameters:  slice, index, value  -> pop value, pop index, peek 
 
 */
 
+// TODO: since new opcodes will be added , need to reserve some space in categories.
 pub const PUSH_U32: u8 = 0x01;
 pub const PUSH_STRING: u8 = 0x02;
-pub const PUSH_STATUS: u8 = 0x03;
+pub const PUSH_STATE: u8 = 0x03;
 pub const PUSH_CALLDATA: u8 = 0x04;
 pub const PUSH_TASK_FIELD: u8 = 0x05;
+pub const PUSH_MAX_STATES: u8 = 0x06;
 //
-pub const T_CREATE: u8 = 0x06;
-pub const T_GET_FIELD: u8 = 0x07;
-pub const T_SET_FIELD: u8 = 0x08;
-pub const T_DELETE: u8 = 0x09;
+pub const T_CREATE: u8 = 0x07;
+pub const T_GET_FIELD: u8 = 0x08;
+pub const T_SET_FIELD: u8 = 0x09;
+pub const T_DELETE: u8 = 0x0a;
 //
-pub const S_SAVE: u8 = 0x0a;
-pub const S_LOAD: u8 = 0x0b; // relict id, should be removed or repurpose -> Pop index -> push task - op checks if task by id exists
-pub const S_LEN: u8 = 0x0c;
+pub const S_SAVE: u8 = 0x0b;
+pub const S_LOAD: u8 = 0x0c; // relict id, should be removed or repurpose -> Pop index -> push task - op checks if task by id exists
+pub const S_LEN: u8 = 0x0d;
 //
-pub const DO: u8 = 0x0d; // (limit, index)
-pub const LOOP: u8 = 0x0e;
-pub const LOOP_INDEX: u8 = 0x0f;
-pub const CALL: u8 = 0x10;
-pub const END_CALL: u8 = 0x11;
-pub const DROP: u8 = 0x12; //
-pub const DUP: u8 = 0x13;
-pub const SWAP: u8 = 0x14;
+pub const DO: u8 = 0x0e; // (limit, index)
+pub const LOOP: u8 = 0x0f;
+pub const LOOP_INDEX: u8 = 0x10;
+pub const CALL: u8 = 0x11;
+pub const END_CALL: u8 = 0x12;
+pub const DROP: u8 = 0x13; //
+pub const DUP: u8 = 0x14;
+pub const SWAP: u8 = 0x15;
 //
-pub const EQ: u8 = 0x15; //compares 2 element on stack and pushes either true or false, format [value,reference value]
-pub const NEQ: u8 = 0x16;
-pub const LT: u8 = 0x17; // "less than" - [left,right] returns true only if left is less than right
-pub const GT: u8 = 0x18; // "greater than" - [left,right] returns true only if left is greater than right
+pub const EQ: u8 = 0x16; //compares 2 element on stack and pushes either true or false, format [value,reference value]
+pub const NEQ: u8 = 0x17;
+pub const LT: u8 = 0x18; // "less than" - [left,right] returns true only if left is less than right
+pub const GT: u8 = 0x19; // "greater than" - [left,right] returns true only if left is greater than right
 
-pub const JUMP_IF_FALSE: u8 = 0x19; //
+pub const JUMP_IF_FALSE: u8 = 0x1a; //
 
-pub const M_SLICE: u8 = 0x1a;
-pub const M_STORE: u8 = 0x1b;
+pub const M_SLICE: u8 = 0x1b;
+pub const M_STORE: u8 = 0x1c;
