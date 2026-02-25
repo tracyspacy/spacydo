@@ -8,5 +8,3 @@ State transition rule: 0(Green)->1(Yellow)->2(Red)->0(Green)
 
 ### Usage
 ```cargo run```
-
-![gif](./traffic_light.gif)
