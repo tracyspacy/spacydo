@@ -344,8 +344,17 @@ impl VM {
                 _ => {}
             }
         }
+        //resetting pc of the main callframe to 0
+        // this would allow us run initialized vm multiple times
+        // while it add convenience and allow reuse of initialized vm and bytecode,
+        // we need keep eye on it if it may cause some risks
+        self.call_stack
+            .last_mut()
+            .ok_or(VMError::StackUnderflow)?
+            .pc = 0;
         Ok(std::mem::take(&mut self.stack))
     }
+
     #[inline]
     fn unbox_value<'a>(&'a self, val: Value) -> VMResult<Return<'a>> {
         match get_value_type(val)? {
