@@ -1,41 +1,64 @@
-# spacydo - task engine virtual machine
+# spacydo 
 
-### Why?
+> "I thought of objects being like biological cells and/or individual computers on a network, only able to communicate with messages."
+— Alan Kay
 
-Imagine a simple todo app with just 4 CRUD primitives (create, read, update, delete), yet it has more features than prominent task management apps.
+---
 
-Spacydo makes this possible because tasks contain executable code. This means a minimal client with 4 primitive functions can have unlimited features - each task programs its own behavior.
+**SPACYDO is a stack-based virtual machine with image-based persistence. The core abstraction is a TASK: a persistent entity carrying its own executable bytecode alongside its state. Tasks can observe and modify fields of other tasks and their own.**
 
-### Concept:Minimal task model + programmable behaviour.
+#### VM TYPES
+All stack values are 64-bit (`u64`) Nan-Boxed values encoding 6 distinct types: 
 
-While the instruction set is minimal, it already demonstrates powerful programmable functionality. Not only can basic task creation, deletion, and filtering be unique or customized, tasks can have their own executable instructions, enabling programmable behavior for each task:
-- filtering tasks based on conditions
-- tasks that modify the state of other tasks
-- tasks that create other tasks
-- recurring tasks
-- auto-deleting tasks on status change
-- etc
+| Type | Description |
+|------|-------------|
+| `Null` | absence of value |
+| `TRUE_VAL`, `FALSE_VAL` | boolean true / false |
+| `U32` | unsigned 32-bit integer |
+| `String` | reference into StringPool |
+| `CallData` | reference into InstructionsPool |
+| `MemSlice` | offset (25-bit) + size (25-bit) into scratch memory |
 
-Creation of simple task without own executable instructions:
-```
-PUSH_STRING TASK1 PUSH_MAX_STATES 2 PUSH_CALLDATA [ ] T_CREATE
-```
+See [values.rs](src/values.rs)
 
-Task that create a subtask when called:
+#### VM INSTRUCTIONS
 
-```PUSH_STRING Parent PUSH_MAX_STATES 3 \
-   PUSH_CALLDATA [ PUSH_STRING Child PUSH_MAX_STATES 3 PUSH_CALLDATA [ ] T_CREATE END_CALL ] \
-   T_CREATE \
-   PUSH_U32 0 CALL
-```
+|Type | Instructions |
+|-----|---------------|
+|Stack Operations| `PUSH_U32`, `PUSH_STRING`, `PUSH_CALLDATA`, `PUSH_STATE`, `PUSH_MAX_STATES`, `DUP`, `SWAP`, `DROP`|
+|Task Operations| `T_CREATE`, `T_GET_FIELD`, `T_SET_FIELD`, `T_DELETE`|
+|Storage Operations| `S_SAVE`, `S_LEN`|
+|Memory Operations|`M_SLICE`, `M_STORE`|
+|Control Flow| `DO`, `LOOP`, `LOOP_INDEX`, `CALL`, `END_CALL`, `IF..THEN`|
+|Logic operations| `EQ`, `NEQ`, `LT`, `GT`|
 
-Potentially, a todo client based on spacydo could be extensible through programming rather than constrained by a fixed feature set, allowing developers and users to define task behavior through adding or modifying instructions.
-
-### Examples
-
-[See here](./examples/) for practical examples.
+**Instruction set with description is here: [opcodes.rs](src/bytecode/opcodes.rs)**
+VM instruction set is intentionally minimal and aiming to remain minimal in a future.
+While bytecode instructions are expressive enough already, bytecode is verbose, so new instructions should be added.
 
 
+#### What this enables
+
+Because behavior lives inside the task rather than in application code, programs therefore consist of networks of interacting tasks whose behavior emerges from state transitions, and this behavior is updatable at runtime without application recompilation.
+
+The same primitive naturally expresses:
+
+**Workflows** — tasks that create, modify, chain, or destroy other tasks on state change. Behavior loaded from TOML at runtime, no recompilation required.
+
+**State machines** — a task whose instructions encode its own transition rules. The traffic light example is a single task: instructions define red→green→yellow→red, no external FSM framework needed.
+
+**Circuitry simulation** — the BCD decoder example implements a full Binary Coded Decimal decoder from Petzold's *Code*. Every NOT gate and AND gate is a persistent task with its own instructions that reads input task states and updates its own. 
+
+#### Examples
+
+| Example | What it demonstrates |
+|---------|----------------------|
+| [`examples/todo`](examples/todo) | Programmable tasks — chain, hide, self-destruct, conditional completion |
+| [`examples/traffic_light`](examples/traffic_light) | Finite State machine as a single self-transitioning task |
+| [`examples/bcd-decoder`](examples/bcd-decoder) | BCD decoder circuitry from "Code" by Charles Petzold book emulation with logic gates as Tasks |
+
+
+**Various Usage examples**:
 
 ```
 let ops = "PUSH_U32 2 PUSH_U32 2 EQ IF PUSH_U32 3 THEN PUSH_U32 4 PUSH_STRING HELLO PUSH_U32 42 PUSH_U32 42 EQ PUSH_CALLDATA [ PUSH_U32 11 END_CALL ]";
@@ -57,7 +80,6 @@ let _val:u32 = unboxed_stack[0].as_u32()?;
 let _calldata:&str = unboxed_stack[4].as_calldata()?;
 
 // example with memory write
-
 let ops_mem =
         "PUSH_U32 0 PUSH_U32 5 M_SLICE PUSH_U32 5 PUSH_U32 0 DO LOOP_INDEX LOOP_INDEX M_STORE LOOP";
 
@@ -75,7 +97,6 @@ let memory_values: Vec<u32> = vm
 
 
 // example with memory write containing Null values
-
 let ops_mem_null_vals = "PUSH_U32 0 PUSH_U32 5 M_SLICE PUSH_U32 1 PUSH_U32 1 M_STORE PUSH_U32 3 PUSH_U32 3 M_STORE";
 
 let mut vm = VM::init(ops_mem)?;
@@ -96,34 +117,10 @@ let filtered: Vec<u32> = vm.return_memory(offset, size).filter_map(|r| match r.u
 
 ```
 
-### Implementation Details
-- **NaN-boxing** — All stack values are 64-bit (`u64`) encoding 6 distinct types (`Null`, Boolean(`TRUE_VAL`,`FALSE_VAL`), `STRING_VAL`, `CALLDATA_VAL`, `U32_VAL`, `MEM_SLICE_VAL`  (offset: 25 bits, size: 25 bits)). See [values.rs](src/values.rs).
-
-- **InlineVec** — Fixed-size array-backed vector implementation used for stack, control stack, call stack, and jump stack with specified limits. See [inlinevec.rs](src/inlinevec.rs).
-
-- **Dynamic Memory/Heap** — growable Vec<Value> heap; memory slices use 25-bit offset and 25-bit size fields (limited by MEM_SLICE_VAL).
-
-- **Zero dependencies** — Custom binary encoding/decoding implementation. See [bincodec.rs](src/storage/bincodec.rs).
-
-
-**Instruction set with description is here: [opcodes.rs](src/bytecode/opcodes.rs)**
-
-**Instruction categories:**
-
-**Stack Operations**: `PUSH_U32`, `PUSH_STRING`, `PUSH_CALLDATA`, `PUSH_STATE`, `PUSH_MAX_STATES`, `DUP`, `SWAP`, `DROP`
-
-**Task Operations**: `T_CREATE`, `T_GET_FIELD`, `T_SET_FIELD`, `T_DELETE`
-
-**Storage Operations**: `S_SAVE`, `S_LEN`
-
-**Memory Operations**: `M_SLICE`, `M_STORE`
-
-**Control Flow**: `DO`, `LOOP`, `LOOP_INDEX`, `CALL`, `END_CALL`, `IF..THEN`
-
-**Comparison**: `EQ`, `NEQ`, `LT`, `GT`
-
-### Current Scope / Known Issues:
+#### Current Scope / Known Issues:
 - storage and VM are not thread-safe
-- instruction set is not stabilized (which instructions to add?)
-- task model is not stabilized (which fields to add?)
+- instruction set is not yet stabilized 
+- task model is not yet stabilized
+- nested loops limited to 2 levels
+- nested calls limited to 2 frames
 - type checking during assembly to bytecode should be improved
