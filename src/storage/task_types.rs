@@ -22,7 +22,7 @@ impl TaskVM {
         strings: &mut StringPool,
         instructions_pool: &mut InstructionsPool,
     ) -> VMResult<Self> {
-        let title_idx = strings.intern_string(task.title.as_bytes());
+        let title_idx = strings.intern_string(task.title);
         let inst_ref = instructions_pool.intern_instructions(task.instructions);
 
         Ok(Self {

@@ -117,7 +117,7 @@ impl VM {
                 PUSH_STRING => {
                     let size = instructions[pc] as usize;
                     pc += 1;
-                    let val = self.pool.intern_string(&instructions[pc..pc + size]);
+                    let val = self.pool.intern_bytes(&instructions[pc..pc + size])?;
                     self.stack.push(to_string_val(val))?;
                     pc += size;
                 }

@@ -56,6 +56,7 @@ pub enum VMError {
         context: &'static str,
         max: u32,
     },
+    BytesToStringConversionError,
 }
 
 pub type VMResult<T> = Result<T, VMError>;

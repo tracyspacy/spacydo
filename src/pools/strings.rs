@@ -3,27 +3,41 @@ use std::collections::HashMap;
 
 #[derive(Default, Debug)]
 pub struct StringPool {
-    map: HashMap<Box<[u8]>, u32>,
-    vec: Vec<Box<[u8]>>,
+    map: HashMap<Box<str>, u32>,
+    vec: Vec<Box<str>>,
 }
 
 impl StringPool {
-    pub(crate) fn intern_string(&mut self, s: &[u8]) -> u32 {
+    pub(crate) fn intern_string(&mut self, s: String) -> u32 {
         // Check for dup
-        if let Some(&idx) = self.map.get(s) {
+        if let Some(&idx) = self.map.get(s.as_str()) {
             return idx;
         }
 
         // probably use box:: leak and 'static
         let idx = self.vec.len() as u32;
-        self.map.insert(s.into(), idx);
-        self.vec.push(s.into());
+        let boxed: Box<str> = s.into_boxed_str();
+        self.map.insert(boxed.clone(), idx);
+        self.vec.push(boxed);
         idx
     }
 
+    pub(crate) fn intern_bytes(&mut self, s: &[u8]) -> VMResult<u32> {
+        let s = std::str::from_utf8(s).map_err(|_| VMError::BytesToStringConversionError)?;
+        if let Some(&idx) = self.map.get(s) {
+            return Ok(idx);
+        }
+        let idx = self.vec.len() as u32;
+        let boxed: Box<str> = s.into();
+        self.vec.push(boxed.clone());
+        self.map.insert(boxed, idx);
+        Ok(idx)
+    }
+
     pub(crate) fn resolve(&self, idx: usize) -> VMResult<&str> {
-        let bytes = self.vec.get(idx).ok_or(VMError::InvalidStringIndex(idx))?;
-        let str = std::str::from_utf8(bytes).unwrap();
-        Ok(str)
+        self.vec
+            .get(idx)
+            .map(|opt| opt.as_ref())
+            .ok_or(VMError::InvalidStringIndex(idx))
     }
 }
