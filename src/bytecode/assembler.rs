@@ -1,7 +1,6 @@
 use crate::bytecode::opcodes::*;
 use crate::errors::{VMError, VMResult};
 use crate::inlinevec::InlineVec;
-use crate::pools::{InstructionsPool, StringPool};
 
 fn next_token<'a>(
     it: &mut std::iter::Enumerate<impl Iterator<Item = &'a str>>,
@@ -18,11 +17,7 @@ fn next_token<'a>(
 const JUMP_STACK_LIMIT: usize = 2;
 type JumpStack = InlineVec<u32, JUMP_STACK_LIMIT>;
 
-pub fn assemble(
-    src: &str,
-    string_pool: &mut StringPool,
-    instructions_pool: &mut InstructionsPool,
-) -> VMResult<Vec<u8>> {
+pub fn assemble(src: &str) -> VMResult<Vec<u8>> {
     let mut tokens = src.split_whitespace().enumerate();
     let mut bytecode: Vec<u8> = Vec::new();
     // check on assembly nested ifs
@@ -38,11 +33,18 @@ pub fn assemble(
                 })?;
                 bytecode.extend_from_slice(&value.to_be_bytes());
             }
+            // the idea is to assemble string as bytes array with 1 byte length
+            // it will restrinct size of string to 255 bytes ie 255 ut8 chars
+            // for "hello" : 05 68 65 6C 6C 6F
+            // ! not interning string during assembly
             "PUSH_STRING" => {
                 bytecode.push(PUSH_STRING);
                 let (_pos, text) = next_token(&mut tokens, i, "missing String")?;
-                let idx = string_pool.intern_string(text.to_string());
-                bytecode.extend_from_slice(&idx.to_be_bytes());
+                let text_bytes = text.as_bytes();
+                // handle error check if len <=u8::MAX
+                let text_bytes_len = text_bytes.len() as u8;
+                bytecode.extend_from_slice(&[text_bytes_len]);
+                bytecode.extend_from_slice(text_bytes);
             }
             "PUSH_STATE" => {
                 bytecode.push(PUSH_STATE);
@@ -119,11 +121,14 @@ pub fn assemble(
                 let calldata_bytecode = if inner_instructions.is_empty() {
                     Vec::new()
                 } else {
-                    assemble(&inner_instructions, string_pool, instructions_pool)?
+                    assemble(&inner_instructions)?
                 };
 
-                let idx = instructions_pool.intern_instructions(calldata_bytecode);
-                bytecode.extend_from_slice(&idx.to_be_bytes());
+                // to large, switch to u16?
+                let calldata_bytecode_len = calldata_bytecode.len() as u32;
+
+                bytecode.extend_from_slice(&calldata_bytecode_len.to_be_bytes());
+                bytecode.extend_from_slice(calldata_bytecode.as_slice());
             }
 
             "T_CREATE" => {

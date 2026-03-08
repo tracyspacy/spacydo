@@ -11,14 +11,15 @@ impl InstructionsPool {
         self.instructions.push(calldata);
         idx as u32
     }
-    pub(crate) fn len(&self) -> usize {
-        self.instructions.len()
-    }
+    // pub(crate) fn len(&self) -> usize {
+    //     self.instructions.len()
+    // }
     //err if no instruction in pool
     pub(crate) fn get(&self, index: usize) -> VMResult<&[u8]> {
-        self.instructions
+        let instructions = self
+            .instructions
             .get(index)
-            .map(|val| val.as_slice())
-            .ok_or(VMError::InvalidInstructionsIndex(index))
+            .ok_or(VMError::InvalidInstructionsIndex(index))?;
+        Ok(instructions)
     }
 }

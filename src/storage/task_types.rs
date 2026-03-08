@@ -23,9 +23,8 @@ impl TaskVM {
         strings: &mut StringPool,
         instructions_pool: &mut InstructionsPool,
     ) -> VMResult<Self> {
-        let title_idx = strings.intern_string(task.title);
-
-        let bytecode = assemble(&task.instructions, strings, instructions_pool)?;
+        let title_idx = strings.intern_string(task.title.as_bytes());
+        let bytecode = assemble(&task.instructions)?;
         let inst_ref = instructions_pool.intern_instructions(bytecode);
 
         Ok(Self {
@@ -41,7 +40,7 @@ impl TaskVM {
         instructions_pool: &InstructionsPool,
     ) -> VMResult<Task> {
         let code = instructions_pool.get(self.instructions_ref as usize)?;
-        let instructions = disassemble(code, strings, instructions_pool)?;
+        let instructions = disassemble(code)?;
 
         Ok(Task {
             id: self.id,
