@@ -61,8 +61,8 @@ impl VM {
     }
 
     pub fn print_task(&self, id: u32) -> VMResult<Task> {
-        self.storage
-            .resolve_task(id, &self.pool, &self.instructions_pool)
+        let task_vm = self.storage.get(id).ok_or(VMError::TaskNotFound(id))?;
+        task_vm.to_task(&self.pool, &self.instructions_pool)
     }
 
     pub fn return_memory<'a>(

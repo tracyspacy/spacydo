@@ -1,7 +1,7 @@
 use crate::errors::{VMError, VMResult};
 use crate::pools::{InstructionsPool, StringPool};
 use crate::storage::bincodec::{Decode, Encode};
-use crate::storage::task_types::{StorageData, Task, TaskVM};
+use crate::storage::task_types::{StorageData, TaskVM};
 use std::fs::File;
 use std::io::BufWriter;
 
@@ -40,16 +40,6 @@ impl Storage {
         //add context?
         data.encode(&mut writer)?;
         Ok(())
-    }
-
-    pub(crate) fn resolve_task(
-        &self,
-        id: u32,
-        string_pool: &StringPool,
-        instructions_pool: &InstructionsPool,
-    ) -> VMResult<Task> {
-        let task_vm = self.get(id).ok_or(VMError::TaskNotFound(id))?;
-        task_vm.to_task(string_pool, instructions_pool)
     }
 
     pub(crate) fn load(pool: &mut StringPool, op_pool: &mut InstructionsPool) -> VMResult<Self> {

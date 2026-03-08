@@ -138,13 +138,6 @@ impl Encode for Task {
     }
 }
 
-/*
-pub(crate) struct StorageData {
-    tasks: Vec<Task>,
-    next_id: u32,
-}
-*/
-
 impl Encode for StorageData {
     fn encode<W: Write>(&self, w: &mut W) -> VMResult<()> {
         self.tasks.encode(w)?;

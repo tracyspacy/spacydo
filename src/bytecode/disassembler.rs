@@ -24,11 +24,8 @@ pub fn disassemble(bytecode: &[u8]) -> VMResult<String> {
             }
             PUSH_STRING => {
                 result.push_str("PUSH_STRING ");
-                //let idx = prepare_u32_from_be_checked(bytecode, pc)? as usize;
-                //let s = string_pool.resolve(idx)?;
                 let size = bytecode[pc] as usize;
                 pc += 1;
-                //let str = bytecode[pc..pc + size];
                 let str = std::str::from_utf8(&bytecode[pc..pc + size]).unwrap();
                 result.push_str(str);
                 result.push(' ');

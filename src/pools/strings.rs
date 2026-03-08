@@ -16,7 +16,6 @@ impl StringPool {
 
         // probably use box:: leak and 'static
         let idx = self.vec.len() as u32;
-        //let boxed: Box<[u8]> = s.into_boxed_str();
         self.map.insert(s.into(), idx);
         self.vec.push(s.into());
         idx

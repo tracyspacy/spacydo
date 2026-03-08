@@ -50,28 +50,6 @@ impl TaskVM {
     }
 }
 
-/*
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub enum TaskStatus {
-    NotComplete = 0,
-    InProgress = 1,
-    Complete = 2,
-}
-
-impl TryFrom<u32> for TaskStatus {
-    type Error = VMError;
-
-    fn try_from(v: u32) -> Result<Self, Self::Error> {
-        match v {
-            0 => Ok(TaskStatus::NotComplete),
-            1 => Ok(TaskStatus::InProgress),
-            2 => Ok(TaskStatus::Complete),
-            _ => Err(VMError::InvalidStatus(v)),
-        }
-    }
-}
-*/
-
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct TaskState {
     pub len: u8,
