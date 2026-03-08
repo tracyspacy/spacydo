@@ -52,6 +52,10 @@ pub enum VMError {
     MalformedIfThen {
         context: &'static str,
     },
+    InstructionSizeError {
+        context: &'static str,
+        max: u32,
+    },
 }
 
 pub type VMResult<T> = Result<T, VMError>;

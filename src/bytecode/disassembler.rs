@@ -66,8 +66,8 @@ pub fn disassemble(bytecode: &[u8]) -> VMResult<String> {
 
             PUSH_CALLDATA => {
                 result.push_str("PUSH_CALLDATA [ ");
-                let size = prepare_u32_from_be_checked(bytecode, pc)? as usize;
-                pc += 4;
+                let size = prepare_u16_from_be_checked(bytecode, pc)? as usize;
+                pc += 2;
                 //check logic
                 let inner = &bytecode[pc..pc + size];
 

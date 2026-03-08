@@ -41,8 +41,11 @@ pub fn assemble(src: &str) -> VMResult<Vec<u8>> {
                 bytecode.push(PUSH_STRING);
                 let (_pos, text) = next_token(&mut tokens, i, "missing String")?;
                 let text_bytes = text.as_bytes();
-                // handle error check if len <=u8::MAX
-                let text_bytes_len = text_bytes.len() as u8;
+                let text_bytes_len =
+                    u8::try_from(text_bytes.len()).map_err(|_| VMError::InstructionSizeError {
+                        context: "String size exceeded limit",
+                        max: u8::MAX as u32,
+                    })?;
                 bytecode.extend_from_slice(&[text_bytes_len]);
                 bytecode.extend_from_slice(text_bytes);
             }
@@ -124,9 +127,14 @@ pub fn assemble(src: &str) -> VMResult<Vec<u8>> {
                     assemble(&inner_instructions)?
                 };
 
-                // to large, switch to u16?
-                let calldata_bytecode_len = calldata_bytecode.len() as u32;
-
+                // u16 - up to 65_535 . still a lot but better than u32
+                let calldata_bytecode_len =
+                    u16::try_from(calldata_bytecode.len()).map_err(|_| {
+                        VMError::InstructionSizeError {
+                            context: "Calldata size exceeded limit",
+                            max: u16::MAX as u32,
+                        }
+                    })?;
                 bytecode.extend_from_slice(&calldata_bytecode_len.to_be_bytes());
                 bytecode.extend_from_slice(calldata_bytecode.as_slice());
             }

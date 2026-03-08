@@ -122,8 +122,8 @@ impl VM {
                     pc += size;
                 }
                 PUSH_CALLDATA => {
-                    let size = prepare_u32_from_be_checked(&instructions, pc)? as usize;
-                    pc += 4; // for u32
+                    let size = prepare_u16_from_be_checked(&instructions, pc)? as usize;
+                    pc += 2; // for u16
 
                     let val = self
                         .instructions_pool
