@@ -240,7 +240,7 @@ fn test_create_task() {
         id: 0,
         title: "TestTask".to_string(),
         state: TaskState { len: 3, state: 0 },
-        instructions: "".to_string(),
+        instructions: Vec::new(),
     };
     assert_eq!(test_task.id, printed_task.id);
     assert_eq!(test_task.title, printed_task.title);

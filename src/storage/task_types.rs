@@ -1,4 +1,3 @@
-use crate::bytecode::{assembler::assemble, disassembler::disassemble};
 use crate::errors::{VMError, VMResult};
 use crate::pools::{InstructionsPool, StringPool};
 
@@ -7,7 +6,7 @@ pub struct Task {
     pub id: u32,
     pub title: String,
     pub state: TaskState,
-    pub instructions: String,
+    pub instructions: Vec<u8>,
 }
 
 #[derive(Debug, Clone)]
@@ -24,8 +23,7 @@ impl TaskVM {
         instructions_pool: &mut InstructionsPool,
     ) -> VMResult<Self> {
         let title_idx = strings.intern_string(task.title.as_bytes());
-        let bytecode = assemble(&task.instructions)?;
-        let inst_ref = instructions_pool.intern_instructions(bytecode);
+        let inst_ref = instructions_pool.intern_instructions(task.instructions);
 
         Ok(Self {
             id: task.id,
@@ -39,8 +37,9 @@ impl TaskVM {
         strings: &StringPool,
         instructions_pool: &InstructionsPool,
     ) -> VMResult<Task> {
-        let code = instructions_pool.get(self.instructions_ref as usize)?;
-        let instructions = disassemble(code)?;
+        let instructions = instructions_pool
+            .get(self.instructions_ref as usize)?
+            .to_vec();
 
         Ok(Task {
             id: self.id,
