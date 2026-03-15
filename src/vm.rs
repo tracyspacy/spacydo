@@ -1,5 +1,7 @@
 use crate::VMError;
-use crate::bytecode::{assembler::assemble, disassembler::disassemble, helpers::*, opcodes::*};
+use crate::bytecode::{helpers::*, opcodes::*};
+#[cfg(feature = "dot")]
+use crate::dot::{bin2dot::bin2dot, dot2bin::dot2bin};
 use crate::errors::VMResult;
 use crate::inlinevec::InlineVec;
 use crate::pools::{InstructionsPool, StringPool};
@@ -33,14 +35,13 @@ pub struct VM {
 
 /// VM is NOT thread-safe.
 impl VM {
-    pub fn init(instructions: &str) -> VMResult<Self> {
+    pub fn init(instructions: Vec<u8>) -> VMResult<Self> {
         if instructions.is_empty() {
             return Err(VMError::EmptyInstructions);
         }
         let mut pool = StringPool::default();
         let mut vm_instructions = InstructionsPool::default();
-        let program_ops = assemble(instructions)?;
-        let program_ref = vm_instructions.intern_instructions(program_ops);
+        let program_ref = vm_instructions.intern_instructions(instructions);
         let storage = Storage::load(&mut pool, &mut vm_instructions)?;
         let mut call_stack = CallStack::default();
         let call_frame = InstructionsFrame {
@@ -79,15 +80,20 @@ impl VM {
         self.memory[start..end].iter().map(|&v| self.unbox_value(v))
     }
 
+    #[cfg(feature = "dot")]
+    pub fn dot2bin(instructions: &str) -> VMResult<Vec<u8>> {
+        dot2bin(instructions)
+    }
+    #[cfg(feature = "dot")]
     // for test purposes, probably remove later
-    pub fn disassemble_bytecode(&self) -> VMResult<String> {
+    pub fn bin2dot(&self) -> VMResult<String> {
         let bytecode_ref = self
             .call_stack
             .last()
             .ok_or(VMError::StackUnderflow)?
             .instructions_ref;
         let bytecode = self.instructions_pool.get(bytecode_ref as usize)?;
-        disassemble(bytecode)
+        bin2dot(bytecode)
     }
 
     pub fn run(&mut self) -> VMResult<Stack> {
@@ -380,7 +386,7 @@ impl VM {
             ValueType::String => Ok(Return::String(self.pool.resolve(to_u32(val) as usize)?)),
             ValueType::CallData => {
                 let bytecode = self.instructions_pool.get(to_u32(val) as usize)?;
-                Ok(Return::CallData(disassemble(bytecode)?))
+                Ok(Return::CallData(bytecode))
             }
             ValueType::MemSlice => {
                 let (offset, size) = to_mem_slice(val)?;

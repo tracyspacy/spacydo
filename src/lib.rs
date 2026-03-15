@@ -1,4 +1,6 @@
 mod bytecode;
+#[cfg(feature = "dot")]
+mod dot;
 mod errors;
 mod inlinevec;
 mod pools;

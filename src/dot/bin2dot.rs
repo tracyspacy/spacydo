@@ -1,3 +1,6 @@
+/*
+ * bin2dot - disassemble spacydo binary to text instructions
+ */
 use crate::bytecode::{helpers::*, opcodes::*};
 use crate::inlinevec::InlineVec;
 use crate::{VMError, VMResult};
@@ -7,7 +10,7 @@ use std::fmt::Write;
 const JUMP_STACK_LIMIT: usize = 2;
 type JumpStack = InlineVec<u32, JUMP_STACK_LIMIT>;
 
-pub fn disassemble(bytecode: &[u8]) -> VMResult<String> {
+pub fn bin2dot(bytecode: &[u8]) -> VMResult<String> {
     let mut result = String::new();
     let mut pc: usize = 0;
     let mut jump_dest_stack: JumpStack = JumpStack::default();
@@ -69,7 +72,7 @@ pub fn disassemble(bytecode: &[u8]) -> VMResult<String> {
                 let inner = &bytecode[pc..pc + size];
 
                 if !inner.is_empty() {
-                    result.push_str(&disassemble(inner)?);
+                    result.push_str(&bin2dot(inner)?);
                 }
                 result.push_str(" ] ");
             }

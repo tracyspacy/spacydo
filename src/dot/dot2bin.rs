@@ -1,3 +1,7 @@
+/*
+ * dot2bin - assemble text instructions to spacydo binary
+ */
+
 use crate::bytecode::opcodes::*;
 use crate::errors::{VMError, VMResult};
 use crate::inlinevec::InlineVec;
@@ -17,7 +21,7 @@ fn next_token<'a>(
 const JUMP_STACK_LIMIT: usize = 2;
 type JumpStack = InlineVec<u32, JUMP_STACK_LIMIT>;
 
-pub fn assemble(src: &str) -> VMResult<Vec<u8>> {
+pub fn dot2bin(src: &str) -> VMResult<Vec<u8>> {
     let mut tokens = src.split_whitespace().enumerate();
     let mut bytecode: Vec<u8> = Vec::new();
     // check on assembly nested ifs
@@ -124,7 +128,7 @@ pub fn assemble(src: &str) -> VMResult<Vec<u8>> {
                 let calldata_bytecode = if inner_instructions.is_empty() {
                     Vec::new()
                 } else {
-                    assemble(&inner_instructions)?
+                    dot2bin(&inner_instructions)?
                 };
 
                 // u16 - up to 65_535 . still a lot but better than u32

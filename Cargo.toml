@@ -7,5 +7,9 @@ edition = "2024"
 [profile.release]
 debug = true
 
+[features]
+default = ["dot"]
+dot = []
+
 [dev-dependencies]
 serial_test = "3.2.0"
