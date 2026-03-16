@@ -196,7 +196,7 @@ pub(crate) fn get_value_type(nan_boxed_val: Value) -> VMResult<ValueType> {
 pub enum Return<'a> {
     U32(u32),
     String(&'a str),
-    CallData(String),
+    CallData(&'a [u8]),
     Bool(bool),
     MemSlice(u32, u32),
     Null,
@@ -216,7 +216,7 @@ impl<'a> Return<'a> {
         }
     }
 
-    pub fn as_calldata(&self) -> VMResult<&str> {
+    pub fn as_calldata(&self) -> VMResult<&[u8]> {
         match self {
             Return::CallData(c) => Ok(c),
             _ => Err(VMError::TypeMismatch),

@@ -1,4 +1,3 @@
-use crate::bytecode::{assembler::assemble, disassembler::disassemble};
 use crate::errors::{VMError, VMResult};
 use crate::pools::{InstructionsPool, StringPool};
 
@@ -7,7 +6,7 @@ pub struct Task {
     pub id: u32,
     pub title: String,
     pub state: TaskState,
-    pub instructions: String,
+    pub instructions: Vec<u8>,
 }
 
 #[derive(Debug, Clone)]
@@ -24,9 +23,7 @@ impl TaskVM {
         instructions_pool: &mut InstructionsPool,
     ) -> VMResult<Self> {
         let title_idx = strings.intern_string(task.title);
-
-        let bytecode = assemble(&task.instructions, strings, instructions_pool)?;
-        let inst_ref = instructions_pool.intern_instructions(bytecode);
+        let inst_ref = instructions_pool.intern_instructions(task.instructions);
 
         Ok(Self {
             id: task.id,
@@ -40,8 +37,9 @@ impl TaskVM {
         strings: &StringPool,
         instructions_pool: &InstructionsPool,
     ) -> VMResult<Task> {
-        let code = instructions_pool.get(self.instructions_ref as usize)?;
-        let instructions = disassemble(code, strings, instructions_pool)?;
+        let instructions = instructions_pool
+            .get(self.instructions_ref as usize)?
+            .to_vec();
 
         Ok(Task {
             id: self.id,
@@ -51,28 +49,6 @@ impl TaskVM {
         })
     }
 }
-
-/*
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub enum TaskStatus {
-    NotComplete = 0,
-    InProgress = 1,
-    Complete = 2,
-}
-
-impl TryFrom<u32> for TaskStatus {
-    type Error = VMError;
-
-    fn try_from(v: u32) -> Result<Self, Self::Error> {
-        match v {
-            0 => Ok(TaskStatus::NotComplete),
-            1 => Ok(TaskStatus::InProgress),
-            2 => Ok(TaskStatus::Complete),
-            _ => Err(VMError::InvalidStatus(v)),
-        }
-    }
-}
-*/
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct TaskState {

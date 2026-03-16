@@ -1,5 +1,7 @@
 use crate::VMError;
-use crate::bytecode::{assembler::assemble, disassembler::disassemble, helpers::*, opcodes::*};
+use crate::bytecode::{helpers::*, opcodes::*};
+#[cfg(feature = "dot")]
+use crate::dot::{bin2dot::bin2dot, dot2bin::dot2bin};
 use crate::errors::VMResult;
 use crate::inlinevec::InlineVec;
 use crate::pools::{InstructionsPool, StringPool};
@@ -33,14 +35,13 @@ pub struct VM {
 
 /// VM is NOT thread-safe.
 impl VM {
-    pub fn init(instructions: &str) -> VMResult<Self> {
+    pub fn init(instructions: Vec<u8>) -> VMResult<Self> {
         if instructions.is_empty() {
             return Err(VMError::EmptyInstructions);
         }
         let mut pool = StringPool::default();
         let mut vm_instructions = InstructionsPool::default();
-        let program_ops = assemble(instructions, &mut pool, &mut vm_instructions)?;
-        let program_ref = vm_instructions.intern_instructions(program_ops);
+        let program_ref = vm_instructions.intern_instructions(instructions);
         let storage = Storage::load(&mut pool, &mut vm_instructions)?;
         let mut call_stack = CallStack::default();
         let call_frame = InstructionsFrame {
@@ -61,12 +62,12 @@ impl VM {
     }
 
     pub fn print_task(&self, id: u32) -> VMResult<Task> {
-        self.storage
-            .resolve_task(id, &self.pool, &self.instructions_pool)
+        let task_vm = self.storage.get(id).ok_or(VMError::TaskNotFound(id))?;
+        task_vm.to_task(&self.pool, &self.instructions_pool)
     }
 
     pub fn return_memory<'a>(
-        &'a mut self,
+        &'a self,
         offset: u32,
         size: u32,
     ) -> impl Iterator<Item = VMResult<Return<'a>>> {
@@ -79,15 +80,20 @@ impl VM {
         self.memory[start..end].iter().map(|&v| self.unbox_value(v))
     }
 
+    #[cfg(feature = "dot")]
+    pub fn dot2bin(instructions: &str) -> VMResult<Vec<u8>> {
+        dot2bin(instructions)
+    }
+    #[cfg(feature = "dot")]
     // for test purposes, probably remove later
-    pub fn disassemble_bytecode(&self) -> VMResult<String> {
+    pub fn bin2dot(&self) -> VMResult<String> {
         let bytecode_ref = self
             .call_stack
             .last()
             .ok_or(VMError::StackUnderflow)?
             .instructions_ref;
         let bytecode = self.instructions_pool.get(bytecode_ref as usize)?;
-        disassemble(bytecode, &self.pool, &self.instructions_pool)
+        bin2dot(bytecode)
     }
 
     pub fn run(&mut self) -> VMResult<Stack> {
@@ -98,7 +104,9 @@ impl VM {
             .instructions_ref;
         let mut pc = self.call_stack.last().ok_or(VMError::StackUnderflow)?.pc;
         let mut instructions = self.instructions_pool.get(instructions_ref as usize)?;
-        while let Some(&op) = instructions.get(pc) {
+
+        while pc < instructions.len() {
+            let op = instructions[pc];
             // println!("After {:?}: stack = {:?}", op, self.stack);
             pc += 1;
             //dbg!(&self.stack.len());
@@ -110,16 +118,20 @@ impl VM {
                     pc += 4; //magic number
                 }
                 PUSH_STRING => {
-                    let val = prepare_u32_from_be_checked(instructions, pc)?;
-                    // push_stack(&mut self.stack, to_string_val(val))?;
+                    let size = instructions[pc] as usize;
+                    pc += 1;
+                    let val = self.pool.intern_bytes(&instructions[pc..pc + size])?;
                     self.stack.push(to_string_val(val))?;
-                    pc += 4; //magic number
+                    pc += size;
                 }
                 PUSH_CALLDATA => {
-                    let val = prepare_u32_from_be_checked(instructions, pc)?;
-                    //push_stack(&mut self.stack, to_calldata_val(val))?;
+                    let size = prepare_u16_from_be_checked(instructions, pc)? as usize;
+                    pc += 2; // for u16
+                    let calldata_vec = instructions[pc..pc + size].to_vec();
+                    pc += size;
+                    let val = self.instructions_pool.intern_instructions(calldata_vec);
                     self.stack.push(to_calldata_val(val))?;
-                    pc += 4; //magic number
+                    instructions = self.instructions_pool.get(instructions_ref as usize)?
                 }
 
                 PUSH_STATE | PUSH_MAX_STATES | PUSH_TASK_FIELD => {
@@ -363,11 +375,7 @@ impl VM {
             ValueType::String => Ok(Return::String(self.pool.resolve(to_u32(val) as usize)?)),
             ValueType::CallData => {
                 let bytecode = self.instructions_pool.get(to_u32(val) as usize)?;
-                Ok(Return::CallData(disassemble(
-                    bytecode,
-                    &self.pool,
-                    &self.instructions_pool,
-                )?))
+                Ok(Return::CallData(bytecode))
             }
             ValueType::MemSlice => {
                 let (offset, size) = to_mem_slice(val)?;

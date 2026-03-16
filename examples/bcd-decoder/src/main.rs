@@ -33,7 +33,8 @@ const SET_STATE: &str =
 const SHOW: &str = "PUSH_U32 0 S_LEN M_SLICE S_LEN PUSH_U32 0 DO LOOP_INDEX DUP EQ LOOP_INDEX CALL IF LOOP_INDEX LOOP_INDEX M_STORE THEN LOOP";
 
 fn init() {
-    let mut check_vm = VM::init("PUSH_U32 17 PUSH_TASK_FIELD 1 T_GET_FIELD").unwrap();
+    let bytecode = VM::dot2bin("PUSH_U32 17 PUSH_TASK_FIELD 1 T_GET_FIELD").unwrap();
+    let mut check_vm = VM::init(bytecode).unwrap();
     if check_vm.run().is_err() {
         // BITS
         create_bit("BIT_0");
@@ -81,7 +82,8 @@ fn init() {
 
 fn create_bit(title: &str) {
     let bit = BITS.replace("%BIT%", title);
-    let mut vm = VM::init(&bit).unwrap();
+    let bytecode = VM::dot2bin(&bit).unwrap();
+    let mut vm = VM::init(bytecode).unwrap();
     vm.run().unwrap();
 }
 
@@ -90,7 +92,8 @@ fn create_inverter(title: &str, bit_id: &str, own_id: &str) {
         .replace("%INV_N%", title)
         .replace("%ID%", bit_id)
         .replace("%OWN_ID%", own_id);
-    let mut vm = VM::init(&inverter).unwrap();
+    let bytecode = VM::dot2bin(&inverter).unwrap();
+    let mut vm = VM::init(bytecode).unwrap();
     vm.run().unwrap();
 }
 
@@ -109,7 +112,8 @@ fn create_and_gate(
         .replace("%ID_2%", input_2)
         .replace("%ID_3%", input_3)
         .replace("%OWN_ID%", own_id);
-    let mut vm = VM::init(&and_gate).unwrap();
+    let bytecode = VM::dot2bin(&and_gate).unwrap();
+    let mut vm = VM::init(bytecode).unwrap();
     vm.run().unwrap();
 }
 
@@ -117,12 +121,14 @@ fn set_state(state: &str, id: &str) {
     let set_state = SET_STATE
         .replace("%STATE_VALUE%", state)
         .replace("%ID%", id);
-    let mut vm = VM::init(&set_state).unwrap();
+    let bytecode = VM::dot2bin(&set_state).unwrap();
+    let mut vm = VM::init(bytecode).unwrap();
     vm.run().unwrap();
 }
 
 fn show() {
-    let mut vm = VM::init(SHOW).unwrap();
+    let bytecode = VM::dot2bin(SHOW).unwrap();
+    let mut vm = VM::init(bytecode).unwrap();
     let stack = vm.run().unwrap();
     let (offset, size) = vm
         .unbox(&stack)

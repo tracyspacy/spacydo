@@ -119,7 +119,8 @@ fn delete_task_vm(id: &str) -> String {
 }
 
 fn show(instructions: &str) -> VMResult<()> {
-    let mut vm = VM::init(instructions)?;
+    let bytecode = VM::dot2bin(instructions)?;
+    let mut vm = VM::init(bytecode)?;
 
     let stack = vm.run()?;
     let (offset, size) = vm.unbox(&stack).next().unwrap()?.as_mem_slice()?;
@@ -160,21 +161,24 @@ fn main() -> VMResult<()> {
                 Some((name, params)) => load_calldata(&name, params.as_slice()).unwrap(),
                 None => "".to_string(),
             };
-            let bytecode = create_task_vm(&title, &instructions);
-            let mut vm = VM::init(&bytecode)?;
+            let dot = create_task_vm(&title, &instructions);
+            let bytecode = VM::dot2bin(&dot)?;
+            let mut vm = VM::init(bytecode)?;
             vm.run()?;
             println!("Task '{}' added", title);
         }
 
         Command::Status { id, status } => {
-            let bytecode = set_status_vm(&id, &status);
-            let mut vm = VM::init(&bytecode)?;
+            let dot = set_status_vm(&id, &status);
+            let bytecode = VM::dot2bin(&dot)?;
+            let mut vm = VM::init(bytecode)?;
             vm.run()?;
             println!("Status of task {} updated", id);
         }
         Command::Delete { id } => {
-            let bytecode = delete_task_vm(&id);
-            let mut vm = VM::init(&bytecode)?;
+            let dot = delete_task_vm(&id);
+            let bytecode = VM::dot2bin(&dot)?;
+            let mut vm = VM::init(bytecode)?;
             vm.run()?;
             println!("Task {} is deleted", id);
         }

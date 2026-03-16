@@ -22,10 +22,22 @@ impl StringPool {
         idx
     }
 
+    pub(crate) fn intern_bytes(&mut self, s: &[u8]) -> VMResult<u32> {
+        let s = std::str::from_utf8(s).map_err(|_| VMError::BytesToStringConversionError)?;
+        if let Some(&idx) = self.map.get(s) {
+            return Ok(idx);
+        }
+        let idx = self.vec.len() as u32;
+        let boxed: Box<str> = s.into();
+        self.vec.push(boxed.clone());
+        self.map.insert(boxed, idx);
+        Ok(idx)
+    }
+
     pub(crate) fn resolve(&self, idx: usize) -> VMResult<&str> {
         self.vec
             .get(idx)
-            .map(|opt| &**opt)
+            .map(|opt| opt.as_ref())
             .ok_or(VMError::InvalidStringIndex(idx))
     }
 }

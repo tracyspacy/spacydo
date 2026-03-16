@@ -106,6 +106,20 @@ impl Encode for Vec<Task> {
     }
 }
 
+impl Encode for Vec<u8> {
+    fn encode<W: Write>(&self, w: &mut W) -> VMResult<()> {
+        let len = self.len();
+        if len > VEC_LIMIT {
+            return Err(VMError::StorageSizeTooBig);
+        }
+        (len as u32).encode(w)?;
+        for item in self {
+            item.encode(w)?;
+        }
+        Ok(())
+    }
+}
+
 impl Encode for TaskState {
     fn encode<W: Write>(&self, w: &mut W) -> VMResult<()> {
         self.len.encode(w)?;
@@ -123,13 +137,6 @@ impl Encode for Task {
         Ok(())
     }
 }
-
-/*
-pub(crate) struct StorageData {
-    tasks: Vec<Task>,
-    next_id: u32,
-}
-*/
 
 impl Encode for StorageData {
     fn encode<W: Write>(&self, w: &mut W) -> VMResult<()> {
@@ -215,6 +222,20 @@ impl Decode for Vec<Task> {
     }
 }
 
+impl Decode for Vec<u8> {
+    fn decode<R: Read>(r: &mut R) -> VMResult<Self> {
+        let len = u32::decode(r)? as usize;
+        if len > VEC_LIMIT {
+            return Err(VMError::StorageSizeTooBig);
+        }
+        let mut buf = Vec::with_capacity(len);
+        for _ in 0..len {
+            buf.push(u8::decode(r)?);
+        }
+        Ok(buf)
+    }
+}
+
 impl Decode for TaskState {
     fn decode<R: Read>(r: &mut R) -> VMResult<Self> {
         Ok(TaskState {
@@ -230,7 +251,7 @@ impl Decode for Task {
             id: u32::decode(r)?,
             title: String::decode(r)?,
             state: TaskState::decode(r)?,
-            instructions: String::decode(r)?,
+            instructions: Vec::decode(r)?,
         })
     }
 }

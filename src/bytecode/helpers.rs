@@ -6,6 +6,15 @@ pub fn prepare_u32_from_be_checked(inst_slice: &[u8], pc: usize) -> VMResult<u32
             .map_err(|_| VMError::UnexpectedEOB)?,
     ))
 }
+
+pub fn prepare_u16_from_be_checked(inst_slice: &[u8], pc: usize) -> VMResult<u16> {
+    Ok(u16::from_be_bytes(
+        inst_slice[pc..pc + 2]
+            .try_into()
+            .map_err(|_| VMError::UnexpectedEOB)?,
+    ))
+}
+
 pub fn prepare_u8(bytecode: &[u8], pc: usize) -> VMResult<&u8> {
     bytecode.get(pc).ok_or(VMError::UnexpectedEOB)
 }

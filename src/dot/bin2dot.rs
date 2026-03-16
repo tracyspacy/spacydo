@@ -1,20 +1,16 @@
+/*
+ * bin2dot - disassemble spacydo binary to text instructions
+ */
 use crate::bytecode::{helpers::*, opcodes::*};
 use crate::inlinevec::InlineVec;
-use crate::pools::{InstructionsPool, StringPool};
 use crate::{VMError, VMResult};
 use std::fmt::Write;
-
-const EMPTY: [u8; 0] = [];
 
 // make configurabe and put in same place with ControlStack and CallStack
 const JUMP_STACK_LIMIT: usize = 2;
 type JumpStack = InlineVec<u32, JUMP_STACK_LIMIT>;
 
-pub fn disassemble(
-    bytecode: &[u8],
-    string_pool: &StringPool,
-    instructions_pool: &InstructionsPool,
-) -> VMResult<String> {
+pub fn bin2dot(bytecode: &[u8]) -> VMResult<String> {
     let mut result = String::new();
     let mut pc: usize = 0;
     let mut jump_dest_stack: JumpStack = JumpStack::default();
@@ -31,11 +27,12 @@ pub fn disassemble(
             }
             PUSH_STRING => {
                 result.push_str("PUSH_STRING ");
-                let idx = prepare_u32_from_be_checked(bytecode, pc)? as usize;
-                let s = string_pool.resolve(idx)?;
-                result.push_str(s);
+                let size = bytecode[pc] as usize;
+                pc += 1;
+                let str = std::str::from_utf8(&bytecode[pc..pc + size]).unwrap();
+                result.push_str(str);
                 result.push(' ');
-                pc += 4;
+                pc += size;
             }
             PUSH_STATE => {
                 result.push_str("PUSH_STATE ");
@@ -69,17 +66,13 @@ pub fn disassemble(
 
             PUSH_CALLDATA => {
                 result.push_str("PUSH_CALLDATA [ ");
-                let idx = prepare_u32_from_be_checked(bytecode, pc)? as usize;
-                pc += 4;
+                let size = prepare_u16_from_be_checked(bytecode, pc)? as usize;
+                pc += 2;
                 //check logic
-                let inner: &[u8] = if idx < instructions_pool.len() {
-                    instructions_pool.get(idx)?
-                } else {
-                    &EMPTY
-                };
+                let inner = &bytecode[pc..pc + size];
 
                 if !inner.is_empty() {
-                    result.push_str(&disassemble(inner, string_pool, instructions_pool)?);
+                    result.push_str(&bin2dot(inner)?);
                 }
                 result.push_str(" ] ");
             }
