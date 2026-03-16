@@ -67,7 +67,7 @@ impl VM {
     }
 
     pub fn return_memory<'a>(
-        &'a mut self,
+        &'a self,
         offset: u32,
         size: u32,
     ) -> impl Iterator<Item = VMResult<Return<'a>>> {
@@ -103,19 +103,16 @@ impl VM {
             .ok_or(VMError::StackUnderflow)?
             .instructions_ref;
         let mut pc = self.call_stack.last().ok_or(VMError::StackUnderflow)?.pc;
-        // ! allocation bc of interning inside run. Need to address
-        let mut instructions = self
-            .instructions_pool
-            .get(instructions_ref as usize)?
-            .to_vec();
+        let mut instructions = self.instructions_pool.get(instructions_ref as usize)?;
 
-        while let Some(&op) = instructions.get(pc) {
+        while pc < instructions.len() {
+            let op = instructions[pc];
             // println!("After {:?}: stack = {:?}", op, self.stack);
             pc += 1;
             //dbg!(&self.stack.len());
             match op {
                 PUSH_U32 => {
-                    let val = prepare_u32_from_be_checked(&instructions, pc)?;
+                    let val = prepare_u32_from_be_checked(instructions, pc)?;
                     //push_stack(&mut self.stack, to_u32_val(val))?;
                     self.stack.push(to_u32_val(val))?;
                     pc += 4; //magic number
@@ -128,15 +125,13 @@ impl VM {
                     pc += size;
                 }
                 PUSH_CALLDATA => {
-                    let size = prepare_u16_from_be_checked(&instructions, pc)? as usize;
+                    let size = prepare_u16_from_be_checked(instructions, pc)? as usize;
                     pc += 2; // for u16
-
-                    let val = self
-                        .instructions_pool
-                        .intern_instructions(instructions[pc..pc + size].to_vec());
-
-                    self.stack.push(to_calldata_val(val))?;
+                    let calldata_vec = instructions[pc..pc + size].to_vec();
                     pc += size;
+                    let val = self.instructions_pool.intern_instructions(calldata_vec);
+                    self.stack.push(to_calldata_val(val))?;
+                    instructions = self.instructions_pool.get(instructions_ref as usize)?
                 }
 
                 PUSH_STATE | PUSH_MAX_STATES | PUSH_TASK_FIELD => {
@@ -247,7 +242,7 @@ impl VM {
                 // forth style if .. then
                 JUMP_IF_FALSE => {
                     if self.stack.pop()? == FALSE_VAL {
-                        let val = prepare_u32_from_be_checked(&instructions, pc)?;
+                        let val = prepare_u32_from_be_checked(instructions, pc)?;
                         //dbg!(&val);
                         pc = val as usize;
                     } else {
@@ -343,10 +338,7 @@ impl VM {
                         {
                             let _ = self.call_stack.push(frame);
                             instructions_ref = frame.instructions_ref;
-                            instructions = self
-                                .instructions_pool
-                                .get(instructions_ref as usize)?
-                                .to_vec();
+                            instructions = self.instructions_pool.get(instructions_ref as usize)?;
                             pc = frame.pc;
                         }
                     }
@@ -356,10 +348,7 @@ impl VM {
                         self.call_stack.pop()?;
                         let frame = self.call_stack.last().ok_or(VMError::StackUnderflow)?;
                         instructions_ref = frame.instructions_ref;
-                        instructions = self
-                            .instructions_pool
-                            .get(instructions_ref as usize)?
-                            .to_vec();
+                        instructions = self.instructions_pool.get(instructions_ref as usize)?;
                         pc = frame.pc;
                     }
                 }
