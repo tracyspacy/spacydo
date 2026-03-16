@@ -62,8 +62,16 @@ The same primitive naturally expresses:
 
 ```
 let ops = "PUSH_U32 2 PUSH_U32 2 EQ IF PUSH_U32 3 THEN PUSH_U32 4 PUSH_STRING HELLO PUSH_U32 42 PUSH_U32 42 EQ PUSH_CALLDATA [ PUSH_U32 11 END_CALL ]";
+let bytecode = VM::dot2bin(ops)?;
+/* same without default features:
+ let bytecode = vec![
+        0x01, 0x00, 0x00, 0x00, 0x02, 0x01, 0x00, 0x00, 0x00, 0x02, 0x16, 0x1A, 0x00, 0x00, 0x00,
+        0x15, 0x01, 0x00, 0x00, 0x00, 0x03, 0x01, 0x00, 0x00, 0x00, 0x04, 0x02, 0x05, 0x48, 0x45,
+        0x4C, 0x4C, 0x4F, 0x01, 0x00, 0x00, 0x00, 0x2A, 0x01, 0x00, 0x00, 0x00, 0x2A, 0x16, 0x04,
+        0x00, 0x06, 0x01, 0x00, 0x00, 0x00, 0x0B, 0x12,];
+*/
 // inits vm with instructions
-let mut vm = VM::init(ops)?;
+let mut vm = VM::init(bytecode)?;
 
 // executes instructions and returns raw stack with NaN-boxed values
 let raw_stack = vm.run()?;
@@ -82,8 +90,8 @@ let _calldata:&str = unboxed_stack[4].as_calldata()?;
 // example with memory write
 let ops_mem =
         "PUSH_U32 0 PUSH_U32 5 M_SLICE PUSH_U32 5 PUSH_U32 0 DO LOOP_INDEX LOOP_INDEX M_STORE LOOP";
-
-let mut vm = VM::init(ops_mem)?;
+let bytecode = VM::dot2bin(ops_mem)?;
+let mut vm = VM::init(bytecode)?;
 let raw_stack = vm.run()?;
 
 // get memslice offset and size (offset,size) = (0,5,)
@@ -98,8 +106,8 @@ let memory_values: Vec<u32> = vm
 
 // example with memory write containing Null values
 let ops_mem_null_vals = "PUSH_U32 0 PUSH_U32 5 M_SLICE PUSH_U32 1 PUSH_U32 1 M_STORE PUSH_U32 3 PUSH_U32 3 M_STORE";
-
-let mut vm = VM::init(ops_mem)?;
+let bytecode = VM::dot2bin(ops_mem_null_vals)?;
+let mut vm = VM::init(bytecode)?;
 let raw_stack = vm.run()?;
 
 // get memslice offset and size (offset,size) = (0,5,)
@@ -123,4 +131,3 @@ let filtered: Vec<u32> = vm.return_memory(offset, size).filter_map(|r| match r.u
 - task model is not yet stabilized
 - nested loops limited to 2 levels
 - nested calls limited to 2 frames
-- type checking during assembly to bytecode should be improved
