@@ -381,6 +381,10 @@ impl VM {
                 let (offset, size) = to_mem_slice(val)?;
                 Ok(Return::MemSlice(offset, size))
             }
+            ValueType::VecU32 => {
+                let (offset, size) = to_fat_pointer(val)?;
+                Ok(Return::VecU32(offset, size))
+            }
             ValueType::Null => Ok(Return::Null),
         }
     }
