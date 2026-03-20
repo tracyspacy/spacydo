@@ -20,12 +20,19 @@ fn next_token<'a>(
 // make configurabe and put in same place with ControlStack and CallStack
 const JUMP_STACK_LIMIT: usize = 2;
 type JumpStack = InlineVec<u32, JUMP_STACK_LIMIT>;
+//replce or import?
+const TAG_STRING: u8 = 4;
+const TAG_U32: u8 = 6;
+//signaling byte
+const WO_PAYLOAD: u8 = 0;
+const W_PAYLOAD: u8 = 1;
 
 pub fn dot2bin(src: &str) -> VMResult<Vec<u8>> {
     let mut tokens = src.split_whitespace().enumerate();
     let mut bytecode: Vec<u8> = Vec::new();
     // check on assembly nested ifs
     let mut jump_dest_stack: JumpStack = JumpStack::default();
+    let mut primitive_bump: u32 = 0;
     while let Some((i, token)) = tokens.next() {
         match token {
             "PUSH_U32" => {
@@ -37,22 +44,51 @@ pub fn dot2bin(src: &str) -> VMResult<Vec<u8>> {
                 })?;
                 bytecode.extend_from_slice(&value.to_be_bytes());
             }
+            // rewrite!
             // the idea is to assemble string as bytes array with 1 byte length
             // it will restrinct size of string to 255 bytes ie 255 ut8 chars
             // for "hello" : 05 68 65 6C 6C 6F
             // ! not interning string during assembly
             "PUSH_STRING" => {
-                bytecode.push(PUSH_STRING);
+                bytecode.push(M_STA);
                 let (_pos, text) = next_token(&mut tokens, i, "missing String")?;
                 let text_bytes = text.as_bytes();
-                let text_bytes_len =
-                    u8::try_from(text_bytes.len()).map_err(|_| VMError::InstructionSizeError {
+                let offset = primitive_bump.to_be_bytes();
+                //len of bytes bytes
+                let size =
+                    u16::try_from(text_bytes.len()).map_err(|_| VMError::InstructionSizeError {
                         context: "String size exceeded limit",
-                        max: u8::MAX as u32,
+                        max: u16::MAX as u32,
                     })?;
-                bytecode.extend_from_slice(&[text_bytes_len]);
+                bytecode.extend_from_slice(&offset);
+                bytecode.extend_from_slice(&size.to_be_bytes());
+                bytecode.push(TAG_STRING);
+                //signaling byte 1 == with payload
+                bytecode.push(W_PAYLOAD);
                 bytecode.extend_from_slice(text_bytes);
+                primitive_bump += size as u32;
             }
+
+            "NEW_VEC_U32" => {
+                bytecode.push(M_STA);
+                let (pos, text) = next_token(&mut tokens, i, "missing size")?;
+                // dot is a higher level, so it converts elements to size in bytes
+                // elements * 4 bytes
+                //size should be in bytes! so vm work with bytes sizes
+                let size = text.parse::<u16>().map_err(|_| VMError::InvalidUINT {
+                    command: pos,
+                    value: text.into(),
+                })?;
+                let size_in_bytes = size * 4;
+                let offset = primitive_bump.to_be_bytes();
+                bytecode.extend_from_slice(&offset);
+                bytecode.extend_from_slice(&size_in_bytes.to_be_bytes());
+                bytecode.push(TAG_U32);
+                //signaling byte 0 == without payload
+                bytecode.push(WO_PAYLOAD);
+                primitive_bump += size_in_bytes as u32;
+            }
+
             "PUSH_STATE" => {
                 bytecode.push(PUSH_STATE);
                 let (pos, text) = next_token(&mut tokens, i, "missing Tasks State")?;
@@ -200,11 +236,11 @@ pub fn dot2bin(src: &str) -> VMResult<Vec<u8>> {
             "GT" => {
                 bytecode.push(GT);
             }
-            "M_SLICE" => {
-                bytecode.push(M_SLICE);
+            "M_MUTA" => {
+                bytecode.push(M_MUTA);
             }
-            "M_STORE" => {
-                bytecode.push(M_STORE);
+            "M_STA" => {
+                bytecode.push(M_STA);
             }
             _ => {
                 return Err(VMError::UnknownOpcode {

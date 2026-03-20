@@ -1,4 +1,4 @@
-use crate::errors::{VMError, VMResult};
+/*use crate::errors::{VMError, VMResult};
 use std::collections::HashMap;
 
 #[derive(Default, Debug)]
@@ -41,3 +41,4 @@ impl StringPool {
             .ok_or(VMError::InvalidStringIndex(idx))
     }
 }
+*/

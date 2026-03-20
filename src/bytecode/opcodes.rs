@@ -95,5 +95,5 @@ pub const GT: u8 = 0x19; // "greater than" - [left,right] returns true only if l
 
 pub const JUMP_IF_FALSE: u8 = 0x1a; //
 
-pub const M_SLICE: u8 = 0x1b;
-pub const M_STORE: u8 = 0x1c;
+pub const M_STA: u8 = 0x1b;
+pub const M_MUTA: u8 = 0x1c;

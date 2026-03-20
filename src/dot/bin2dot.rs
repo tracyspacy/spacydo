@@ -96,8 +96,6 @@ pub fn bin2dot(bytecode: &[u8]) -> VMResult<String> {
             NEQ => result.push_str("NEQ "),
             LT => result.push_str("LT "),
             GT => result.push_str("GT "),
-            M_SLICE => result.push_str("M_SLICE "),
-            M_STORE => result.push_str("M_STORE "),
             _ => {}
         }
 

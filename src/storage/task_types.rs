@@ -1,5 +1,6 @@
+use crate::LinearMemory;
 use crate::errors::{VMError, VMResult};
-use crate::pools::{InstructionsPool, StringPool};
+use crate::pools::InstructionsPool;
 
 #[derive(Debug, Clone)]
 pub struct Task {
@@ -12,29 +13,29 @@ pub struct Task {
 #[derive(Debug, Clone)]
 pub(crate) struct TaskVM {
     pub id: u32,
-    pub title: u32,
+    pub title: (u32, u16),
     pub state: TaskState,
     pub instructions_ref: u32,
 }
 impl TaskVM {
     pub(crate) fn from_task(
         task: Task,
-        strings: &mut StringPool,
+        memory: &mut LinearMemory,
         instructions_pool: &mut InstructionsPool,
     ) -> VMResult<Self> {
-        let title_idx = strings.intern_string(task.title);
+        let (offset, size) = memory.alloc_auto(task.title.as_bytes())?;
         let inst_ref = instructions_pool.intern_instructions(task.instructions);
 
         Ok(Self {
             id: task.id,
-            title: title_idx,
+            title: (offset, size),
             state: task.state,
             instructions_ref: inst_ref,
         })
     }
     pub(crate) fn to_task(
         &self,
-        strings: &StringPool,
+        memory: &LinearMemory,
         instructions_pool: &InstructionsPool,
     ) -> VMResult<Task> {
         let instructions = instructions_pool
@@ -43,7 +44,9 @@ impl TaskVM {
 
         Ok(Task {
             id: self.id,
-            title: strings.resolve(self.title as usize)?.to_string(),
+            title: memory
+                .get_slice_as_str(self.title.0, self.title.1)?
+                .to_string(),
             state: self.state,
             instructions,
         })

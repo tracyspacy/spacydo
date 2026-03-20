@@ -1,16 +1,19 @@
-use crate::VMError;
 use crate::bytecode::{helpers::*, opcodes::*};
 #[cfg(feature = "dot")]
 use crate::dot::{bin2dot::bin2dot, dot2bin::dot2bin};
-use crate::errors::VMResult;
+use crate::errors::{VMError, VMResult};
 use crate::inlinevec::InlineVec;
-use crate::pools::{InstructionsPool, StringPool};
+use crate::memory::LinearMemory;
+use crate::pools::InstructionsPool;
 use crate::storage::{storage::Storage, task_types::*};
 use crate::values::*;
 
 const STACK_LIMIT: usize = 1_000;
 const CONTROL_STACK_LIMIT: usize = 2;
 const CALL_STACK_LIMIT: usize = 2;
+//signaling byte
+//const WO_PAYLOAD: u8 = 0;
+const W_PAYLOAD: u8 = 1;
 
 type Stack = InlineVec<Value, STACK_LIMIT>;
 type ControlStack = InlineVec<(u64, u64, u64), CONTROL_STACK_LIMIT>;
@@ -27,10 +30,9 @@ pub struct VM {
     stack: Stack,
     control_stack: ControlStack, //loops limit and index
     storage: Storage,
-    pool: StringPool,
     instructions_pool: InstructionsPool,
     call_stack: CallStack,
-    memory: Vec<Value>,
+    memory: LinearMemory,
 }
 
 /// VM is NOT thread-safe.
@@ -39,10 +41,10 @@ impl VM {
         if instructions.is_empty() {
             return Err(VMError::EmptyInstructions);
         }
-        let mut pool = StringPool::default();
+        let mut memory = LinearMemory::new();
         let mut vm_instructions = InstructionsPool::default();
         let program_ref = vm_instructions.intern_instructions(instructions);
-        let storage = Storage::load(&mut pool, &mut vm_instructions)?;
+        let storage = Storage::load(&mut memory, &mut vm_instructions)?;
         let mut call_stack = CallStack::default();
         let call_frame = InstructionsFrame {
             instructions_ref: program_ref,
@@ -54,30 +56,29 @@ impl VM {
             stack: Stack::default(),
             control_stack: ControlStack::default(),
             storage,
-            pool,
             instructions_pool: vm_instructions,
             call_stack,
-            memory: Vec::new(),
+            memory,
         })
     }
 
     pub fn print_task(&self, id: u32) -> VMResult<Task> {
         let task_vm = self.storage.get(id).ok_or(VMError::TaskNotFound(id))?;
-        task_vm.to_task(&self.pool, &self.instructions_pool)
+        task_vm.to_task(&self.memory, &self.instructions_pool)
     }
 
+    // remove
+    // short term patch for vec u32
     pub fn return_memory<'a>(
         &'a self,
         offset: u32,
         size: u32,
     ) -> impl Iterator<Item = VMResult<Return<'a>>> {
-        let start = offset as usize;
-        let mut end = start + size as usize;
-        let mem_len = self.memory.len();
-        if mem_len < end {
-            end = mem_len;
-        }
-        self.memory[start..end].iter().map(|&v| self.unbox_value(v))
+        let bytes = self.memory.get_slice_bytes(offset, size as u16);
+        bytes.chunks_exact(4).map(|chunk| {
+            let val = u32::from_be_bytes(chunk.try_into().unwrap());
+            Ok(Return::U32(val))
+        })
     }
 
     #[cfg(feature = "dot")]
@@ -118,11 +119,11 @@ impl VM {
                     pc += 4; //magic number
                 }
                 PUSH_STRING => {
-                    let size = instructions[pc] as usize;
+                    /* let size = instructions[pc] as usize;
                     pc += 1;
                     let val = self.pool.intern_bytes(&instructions[pc..pc + size])?;
                     self.stack.push(to_string_val(val))?;
-                    pc += size;
+                    pc += size; */
                 }
                 PUSH_CALLDATA => {
                     let size = prepare_u16_from_be_checked(instructions, pc)? as usize;
@@ -146,7 +147,7 @@ impl VM {
                     // while should not allow on assembly carefully check, if somehow allows bigger than u8 ->
                     // -> it will trucate 3 msb and leave 1 full ie 255
                     let state = TaskState::default(max_states as u8)?;
-                    let title = to_u32(self.stack.pop()?);
+                    let title = to_fat_pointer(self.stack.pop()?)?;
                     let id = self.storage.next_id;
 
                     let task = TaskVM {
@@ -165,7 +166,9 @@ impl VM {
                     let id = to_u32(self.stack.pop()?);
                     let task = &self.storage.get(id).ok_or(VMError::TaskNotFound(id))?;
                     match field {
-                        TaskField::Title => self.stack.push(to_string_val(task.title))?,
+                        TaskField::Title => self
+                            .stack
+                            .push(to_string_vec_val(task.title.0, task.title.1)?)?,
                         TaskField::State => {
                             self.stack.push(to_u32_val(task.state.get_state() as u32))?
                         }
@@ -187,7 +190,7 @@ impl VM {
 
                     let task = &mut self.storage.get_mut(id)?;
                     match field {
-                        TaskField::Title => task.title = to_u32(self.stack.pop()?),
+                        TaskField::Title => task.title = to_fat_pointer(self.stack.pop()?)?,
                         TaskField::State => {
                             let v = to_u32(self.stack.pop()?);
                             task.state.set_state(v)?
@@ -202,7 +205,7 @@ impl VM {
                     let id = to_u32(self.stack.pop()?);
                     self.storage.delete(id)?;
                 }
-                S_SAVE => self.storage.save(&self.pool, &self.instructions_pool)?,
+                S_SAVE => self.storage.save(&self.memory, &self.instructions_pool)?,
                 S_LEN => self.stack.push(to_u32_val(self.storage.len() as u32))?,
 
                 DO => {
@@ -286,32 +289,35 @@ impl VM {
                     let left = self.stack.pop()?;
                     self.stack.push(value_cmp(left, right, false)?)?;
                 }
-
-                M_SLICE => {
-                    let size = to_u32(self.stack.pop()?);
-                    let offset = to_u32(self.stack.pop()?);
-                    // check bounds and add error MemorySliceSizeExceed
-                    // probably auto fill with NULL val?
-                    self.stack.push(to_mem_slice_val(offset, size)?)?;
+                // accepts size in Bytes . same for string and vec u32
+                //
+                M_STA => {
+                    let offset = prepare_u32_from_be_checked(instructions, pc)?;
+                    pc += 4;
+                    let size = prepare_u16_from_be_checked(instructions, pc)?;
+                    pc += 2;
+                    let tag = instructions[pc];
+                    pc += 1;
+                    let signaling_byte = instructions[pc];
+                    pc += 1;
+                    let mut payload: &[u8] = &[];
+                    if signaling_byte == W_PAYLOAD {
+                        payload = &instructions[pc..pc + size as usize];
+                        pc += size as usize;
+                    }
+                    let val = self.memory.alloc_manual(offset, size, tag, payload)?;
+                    self.stack.push(val)?;
                 }
-
-                M_STORE => {
-                    let val = self.stack.pop()?;
-                    let idx_in_slice = to_u32(self.stack.pop()?);
-                    let memslice_val = self.stack.last().ok_or(VMError::StackUnderflow)?;
-                    let (offset, size) = to_mem_slice(memslice_val)?;
-                    if idx_in_slice >= size {
-                        return Err(VMError::MSliceOutOfBounds {
-                            index: idx_in_slice,
-                            size,
-                        });
-                    }
-                    let absolute_idx = (offset + idx_in_slice) as usize;
-                    // resizes & fills with NULL.
-                    if absolute_idx >= self.memory.len() {
-                        self.memory.resize(absolute_idx as usize + 1, NULL_VAL);
-                    }
-                    self.memory[absolute_idx as usize] = val;
+                //mutate at address
+                //
+                M_MUTA => {
+                    //need to add check for byte values
+                    let payload = to_u32(self.stack.pop()?);
+                    let index = to_u32(self.stack.pop()?);
+                    let value = self.stack.last().ok_or(VMError::StackUnderflow)?;
+                    let (offset, size) = to_fat_pointer(value)?;
+                    let tag = tag(value)?;
+                    self.memory.mut_vec(offset, size, index, payload, tag)?
                 }
 
                 DROP => {
@@ -372,16 +378,21 @@ impl VM {
         match get_value_type(val)? {
             ValueType::U32 => Ok(Return::U32(to_u32(val))),
             ValueType::Bool => Ok(Return::Bool(val == TRUE_VAL)),
-            ValueType::String => Ok(Return::String(self.pool.resolve(to_u32(val) as usize)?)),
+            ValueType::String => {
+                let (offset, size) = to_fat_pointer(val)?;
+                let str = &self.memory.get_slice_as_str(offset, size)?;
+                Ok(Return::String(str))
+            }
             ValueType::CallData => {
                 let bytecode = self.instructions_pool.get(to_u32(val) as usize)?;
                 Ok(Return::CallData(bytecode))
             }
-            ValueType::MemSlice => {
+            /* ValueType::MemSlice => {
                 let (offset, size) = to_mem_slice(val)?;
                 Ok(Return::MemSlice(offset, size))
-            }
+            } */
             ValueType::VecU32 => {
+                //keep as it is for now
                 let (offset, size) = to_fat_pointer(val)?;
                 Ok(Return::VecU32(offset, size))
             }

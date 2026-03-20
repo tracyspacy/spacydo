@@ -47,14 +47,14 @@ const TAG_MASK: u64 = 0b111;
 const TAG_NULL: u64 = 1;
 const TAG_FALSE: u64 = 2;
 const TAG_TRUE: u64 = 3;
-const TAG_STRING: u64 = 4;
+pub(crate) const TAG_STRING: u64 = 4;
 const TAG_CALLDATA: u64 = 5;
-const TAG_U32: u64 = 6;
+pub(crate) const TAG_U32: u64 = 6;
 pub(crate) const FALSE_VAL: Value = QNAN | (TAG_FALSE);
 pub(crate) const TRUE_VAL: Value = QNAN | (TAG_TRUE);
 pub(crate) const NULL_VAL: Value = QNAN | (TAG_NULL);
 
-// mem_slice tuple type that is (u25,u25)
+/* // mem_slice tuple type that is (u25,u25)
 //
 #[inline]
 pub(crate) const fn to_mem_slice_val(offset: u32, size: u32) -> VMResult<Value> {
@@ -66,7 +66,7 @@ pub(crate) const fn to_mem_slice_val(offset: u32, size: u32) -> VMResult<Value> 
     } else {
         Err(VMError::MSliceParamOverflow)
     }
-}
+} */
 
 // fat poiner to a vec (offset , size)
 #[inline]
@@ -95,10 +95,10 @@ const fn make_scalar_tagged(tag: u64, payload: u32) -> Value {
 }
 
 // should be removed  since we replace string as idx to string pool with string as fat pointer to linear memory
-#[inline]
+/* #[inline]
 pub const fn to_string_val(idx: u32) -> Value {
     make_scalar_tagged(TAG_STRING, idx)
-}
+} */
 
 #[inline]
 pub(crate) const fn to_u32_val(idx: u32) -> Value {
@@ -116,10 +116,10 @@ const fn to_bool_val(b: bool) -> Value {
 
 // check if tagged
 
-#[inline]
+/* #[inline]
 const fn is_mem_slice(v: Value) -> bool {
     (v) & (QNAN | SIGN_BIT) == (QNAN | SIGN_BIT)
-}
+} */
 
 #[inline]
 const fn is_qnan(v: Value) -> bool {
@@ -157,7 +157,7 @@ const fn raw_tag(v: Value) -> u64 {
 }
 
 #[inline]
-const fn tag(v: Value) -> VMResult<u64> {
+pub(crate) const fn tag(v: Value) -> VMResult<u64> {
     if is_qnan(v) {
         Ok(v & TAG_MASK)
     } else {
@@ -184,7 +184,7 @@ pub(crate) const fn to_u32(v: Value) -> u32 {
     // unused 15 bits  + tag bits 3
 }
 
-pub(crate) const fn to_mem_slice(v: Value) -> VMResult<(u32, u32)> {
+/* pub(crate) const fn to_mem_slice(v: Value) -> VMResult<(u32, u32)> {
     if is_mem_slice(v) {
         let offset = ((v >> 25) & 0x1FFFFFF) as u32;
         let size = (v & 0x1FFFFFF) as u32;
@@ -192,11 +192,11 @@ pub(crate) const fn to_mem_slice(v: Value) -> VMResult<(u32, u32)> {
     } else {
         Err(VMError::InvalidType)
     }
-}
+} */
 
 //returns tuple u32 - offset u16- size
 #[inline]
-pub(crate) const fn to_fat_pointer(v: Value) -> VMResult<(u32, u16)> {
+pub const fn to_fat_pointer(v: Value) -> VMResult<(u32, u16)> {
     if !is_vec(v) {
         return Err(VMError::InvalidType);
     }
@@ -212,7 +212,13 @@ pub(crate) fn value_eq(left: Value, right: Value) -> VMResult<Value> {
         Err(VMError::TypeMismatch)
     } else {
         match tag_left {
-            TAG_U32 | TAG_STRING | TAG_CALLDATA => Ok(to_bool_val(to_u32(left) == to_u32(right))),
+            TAG_U32 | TAG_CALLDATA => Ok(to_bool_val(to_u32(left) == to_u32(right))),
+            //remove!
+            TAG_STRING => {
+                let (_, s_l) = to_fat_pointer(left)?;
+                let (_, s_r) = to_fat_pointer(right)?;
+                Ok(to_bool_val(s_l == s_r))
+            }
             TAG_TRUE | TAG_FALSE => Ok(to_bool_val(left == right)),
             _ => Err(VMError::InvalidType),
         }
@@ -241,15 +247,15 @@ pub(crate) enum ValueType {
     String, // basicaly vec, probably rename
     CallData,
     Bool,
-    MemSlice,
+    /* MemSlice, */
     VecU32,
     Null,
 }
 
 pub(crate) fn get_value_type(nan_boxed_val: Value) -> VMResult<ValueType> {
-    if is_mem_slice(nan_boxed_val) {
-        return Ok(ValueType::MemSlice);
-    }
+    // if is_mem_slice(nan_boxed_val) {
+    //    return Ok(ValueType::MemSlice);
+    // }
     if is_vec(nan_boxed_val) {
         return match raw_tag(nan_boxed_val) {
             TAG_U32 => Ok(ValueType::VecU32),
@@ -277,7 +283,7 @@ pub enum Return<'a> {
     String(&'a str),
     CallData(&'a [u8]),
     Bool(bool),
-    MemSlice(u32, u32),
+    /* MemSlice(u32, u32), */
     VecU32(u32, u16),
     Null,
 }
@@ -310,12 +316,12 @@ impl<'a> Return<'a> {
         }
     }
 
-    pub fn as_mem_slice(&self) -> VMResult<(u32, u32)> {
+    /* pub fn as_mem_slice(&self) -> VMResult<(u32, u32)> {
         match self {
             Return::MemSlice(o, s) => Ok((*o, *s)),
             _ => Err(VMError::TypeMismatch),
         }
-    }
+    } */
 
     pub fn as_vec_u32(&self) -> VMResult<(u32, u16)> {
         match self {
