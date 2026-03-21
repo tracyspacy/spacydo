@@ -118,13 +118,6 @@ impl VM {
                     self.stack.push(to_u32_val(val))?;
                     pc += 4; //magic number
                 }
-                PUSH_STRING => {
-                    /* let size = instructions[pc] as usize;
-                    pc += 1;
-                    let val = self.pool.intern_bytes(&instructions[pc..pc + size])?;
-                    self.stack.push(to_string_val(val))?;
-                    pc += size; */
-                }
                 PUSH_CALLDATA => {
                     let size = prepare_u16_from_be_checked(instructions, pc)? as usize;
                     pc += 2; // for u16
@@ -387,10 +380,6 @@ impl VM {
                 let bytecode = self.instructions_pool.get(to_u32(val) as usize)?;
                 Ok(Return::CallData(bytecode))
             }
-            /* ValueType::MemSlice => {
-                let (offset, size) = to_mem_slice(val)?;
-                Ok(Return::MemSlice(offset, size))
-            } */
             ValueType::VecU32 => {
                 //keep as it is for now
                 let (offset, size) = to_fat_pointer(val)?;

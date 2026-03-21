@@ -44,11 +44,10 @@ pub fn dot2bin(src: &str) -> VMResult<Vec<u8>> {
                 })?;
                 bytecode.extend_from_slice(&value.to_be_bytes());
             }
-            // rewrite!
-            // the idea is to assemble string as bytes array with 1 byte length
-            // it will restrinct size of string to 255 bytes ie 255 ut8 chars
-            // for "hello" : 05 68 65 6C 6C 6F
-            // ! not interning string during assembly
+
+            // [offset:32bits][size:16bits][TAG:8bits][SIGN:8bits][PAYLOAD]
+            // it will restrinct size of string to 65535 bytes
+            // for "hello" at offset 0x00000000 : [00 00 00 00] [00 05] [06] [01] [68 65 6C 6C 6F]
             "PUSH_STRING" => {
                 bytecode.push(M_STA);
                 let (_pos, text) = next_token(&mut tokens, i, "missing String")?;

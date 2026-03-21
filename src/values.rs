@@ -17,12 +17,6 @@ CALLDATA_REF = 5
 U32 = 6
 
 
-MEM_SLICE tuple (u25,u25)
-
-    1        -   11111111111 11   - 0000000000000000000000000 - 0000000000000000000000000
- SIGN_BIT(1) -    QNAN BITS(13)   -         OFFSET(25)        -         SIZE(25)
-
-
 //vector and tag represents what exactly is stored there like Vec<u8> | Vec<u32> |
 
     1        -   11111111111 11   - 0000000000000000000000000 - 0000000000000000 -  000000   - 100
@@ -54,20 +48,6 @@ pub(crate) const FALSE_VAL: Value = QNAN | (TAG_FALSE);
 pub(crate) const TRUE_VAL: Value = QNAN | (TAG_TRUE);
 pub(crate) const NULL_VAL: Value = QNAN | (TAG_NULL);
 
-/* // mem_slice tuple type that is (u25,u25)
-//
-#[inline]
-pub(crate) const fn to_mem_slice_val(offset: u32, size: u32) -> VMResult<Value> {
-    // u25 max check
-    let _a: [u32; 10] = [1; 10];
-
-    if offset < U25_MAX && size < U25_MAX {
-        Ok((SIGN_BIT | QNAN) | ((offset as u64) << 25) | (size as u64))
-    } else {
-        Err(VMError::MSliceParamOverflow)
-    }
-} */
-
 // fat poiner to a vec (offset , size)
 #[inline]
 const fn to_vec_val(offset: u32, size: u16, type_tag: u64) -> VMResult<Value> {
@@ -94,12 +74,6 @@ const fn make_scalar_tagged(tag: u64, payload: u32) -> Value {
     QNAN | ((payload as u64) << 18) | tag
 }
 
-// should be removed  since we replace string as idx to string pool with string as fat pointer to linear memory
-/* #[inline]
-pub const fn to_string_val(idx: u32) -> Value {
-    make_scalar_tagged(TAG_STRING, idx)
-} */
-
 #[inline]
 pub(crate) const fn to_u32_val(idx: u32) -> Value {
     make_scalar_tagged(TAG_U32, idx)
@@ -113,13 +87,6 @@ pub(crate) const fn to_calldata_val(idx: u32) -> Value {
 const fn to_bool_val(b: bool) -> Value {
     if b { TRUE_VAL } else { FALSE_VAL }
 }
-
-// check if tagged
-
-/* #[inline]
-const fn is_mem_slice(v: Value) -> bool {
-    (v) & (QNAN | SIGN_BIT) == (QNAN | SIGN_BIT)
-} */
 
 #[inline]
 const fn is_qnan(v: Value) -> bool {
@@ -141,7 +108,8 @@ const fn is_vec(v: Value) -> bool {
     is_sign_bit(v) && is_qnan(v)
 }
 
-#[inline]
+/* hiding for now
+ #[inline]
 pub(crate) const fn is_string_vec(v: Value) -> bool {
     is_vec(v) && raw_tag(v) == TAG_STRING
 }
@@ -149,7 +117,7 @@ pub(crate) const fn is_string_vec(v: Value) -> bool {
 #[inline]
 pub(crate) const fn is_u32_vec(v: Value) -> bool {
     is_vec(v) && raw_tag(v) == TAG_U32
-}
+} */
 
 #[inline]
 const fn raw_tag(v: Value) -> u64 {
@@ -183,16 +151,6 @@ pub(crate) const fn to_u32(v: Value) -> u32 {
     ((v >> 18) & 0xffff_ffff) as u32
     // unused 15 bits  + tag bits 3
 }
-
-/* pub(crate) const fn to_mem_slice(v: Value) -> VMResult<(u32, u32)> {
-    if is_mem_slice(v) {
-        let offset = ((v >> 25) & 0x1FFFFFF) as u32;
-        let size = (v & 0x1FFFFFF) as u32;
-        Ok((offset, size))
-    } else {
-        Err(VMError::InvalidType)
-    }
-} */
 
 //returns tuple u32 - offset u16- size
 #[inline]
@@ -253,9 +211,6 @@ pub(crate) enum ValueType {
 }
 
 pub(crate) fn get_value_type(nan_boxed_val: Value) -> VMResult<ValueType> {
-    // if is_mem_slice(nan_boxed_val) {
-    //    return Ok(ValueType::MemSlice);
-    // }
     if is_vec(nan_boxed_val) {
         return match raw_tag(nan_boxed_val) {
             TAG_U32 => Ok(ValueType::VecU32),
@@ -283,7 +238,6 @@ pub enum Return<'a> {
     String(&'a str),
     CallData(&'a [u8]),
     Bool(bool),
-    /* MemSlice(u32, u32), */
     VecU32(u32, u16),
     Null,
 }
@@ -315,13 +269,6 @@ impl<'a> Return<'a> {
             _ => Err(VMError::TypeMismatch),
         }
     }
-
-    /* pub fn as_mem_slice(&self) -> VMResult<(u32, u32)> {
-        match self {
-            Return::MemSlice(o, s) => Ok((*o, *s)),
-            _ => Err(VMError::TypeMismatch),
-        }
-    } */
 
     pub fn as_vec_u32(&self) -> VMResult<(u32, u16)> {
         match self {

@@ -89,13 +89,13 @@ impl LinearMemory {
 
     //check if correct
     // keep unused for now
-    pub(crate) fn get_mem_slice_typed(&self, offset: u32, size: u16, tag: u64) -> VMResult<&[u8]> {
+    /* pub(crate) fn get_mem_slice_typed(&self, offset: u32, size: u16, tag: u64) -> VMResult<&[u8]> {
         let element_size_bytes = element_size_bytes(tag)?;
         let size_in_bytes = size as usize * element_size_bytes;
         Ok(&self.0[offset as usize..offset as usize + size_in_bytes])
     }
-
     pub(crate) fn len(&self) -> usize {
         self.0.len()
     }
+    */
 }

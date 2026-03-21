@@ -4,7 +4,6 @@
 ### STACK
 
 PUSH_U32 <u32> - Push u32 value
-PUSH_STRING <String> - Push String value
 PUSH_STATE <u32> - Push state value
 PUSH_MAX_STATES <u32> - Push states len - ie amount of possible states
 example: PUSH_MAX_STATES 5 - means possible states are [0,1,2,3,4]
@@ -55,16 +54,19 @@ END_CALL (returns to main context) - pop current frame from CALL_STACK (task ins
 example: PUSH_U32 0 DUP CALL (execute task 0 instructions)
 
 ### MEMORY
-VM Memory is simple Vec<Value>, grows dynamically , but technically lenght is restricted by mem_slice format : 25 bits payload for offset and size - ie (2^25-1) *2 = 67_108_862
-
-M_SLICE declares a slice ddescripton (offset,size) - as nan-tagged mem_slice_val (offset: 25 bits, size: 25 bits)
-M_STORE takes 3 parameters:  slice, index, value  -> pop value, pop index, peek slice -> writes value at index to memory slice. Important, slice(offset,size) remains on stack!
+VM Memory is linear bytes array Vec<u8>, grows dynamically , but technically length is restricted by offset 25 bits -> max addressable offset is 2^25-1= 33_554_431
+each memory slice is represented by nan-boxed vec [offset:25 bits][size:16bits][tag:3]
+where *offset* is starting byte address in linear memory, *size* is number of bytes , *tag* - vector element type (u32,byte)
+M_STA - Memory Store At - allocates bytes to memory and returns nan-boxed vec_val on stack [offset:25 bits][size:16bits][tag:3]
+M_MUT -Memory Mutate At - mutates memory at address in existing memory slice - takes 3 parameters:  vec, index, value  -> pop value, pop index, peek vec -> writes value at index to memory slice.
+Important, vec[offset:25 bits][size:16bits][tag:3] remains on stack!
 
 */
 
 // TODO: since new opcodes will be added , need to reserve some space in categories.
 pub const PUSH_U32: u8 = 0x01;
-pub const PUSH_STRING: u8 = 0x02;
+// vacant opcode
+// pub const PUSH_STRING: u8 = 0x02;
 pub const PUSH_STATE: u8 = 0x03;
 pub const PUSH_CALLDATA: u8 = 0x04;
 pub const PUSH_TASK_FIELD: u8 = 0x05;
