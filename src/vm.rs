@@ -262,13 +262,33 @@ impl VM {
                 EQ => {
                     let right = self.stack.pop()?;
                     let left = self.stack.pop()?;
-                    self.stack.push(value_eq(left, right)?)?;
+                    if tag(left)? != tag(right)? {
+                        return Err(VMError::TypeMismatch);
+                    }
+                    let eq: Value = if !is_vec(left) {
+                        value_eq(left, right)?
+                    } else {
+                        self.memory
+                            .is_m_slice_eq(to_fat_pointer(left)?, to_fat_pointer(right)?)
+                    };
+                    self.stack.push(eq)?;
                 }
 
                 NEQ => {
                     let right = self.stack.pop()?;
                     let left = self.stack.pop()?;
-                    self.stack.push(value_neq(left, right)?)?;
+                    if tag(left)? != tag(right)? {
+                        return Err(VMError::TypeMismatch);
+                    }
+                    let neq: Value = if !is_vec(left) {
+                        value_neq(left, right)?
+                    } else {
+                        bool_not(
+                            self.memory
+                                .is_m_slice_eq(to_fat_pointer(left)?, to_fat_pointer(right)?),
+                        )
+                    };
+                    self.stack.push(neq)?
                 }
 
                 LT => {

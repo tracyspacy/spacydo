@@ -1,5 +1,6 @@
 use crate::errors::{VMError, VMResult};
 use crate::values::{TAG_STRING, TAG_U32, Value, to_string_vec_val, to_u32_vec_val};
+use crate::{FALSE_VAL, TRUE_VAL, to_bool_val};
 #[derive(Debug)]
 pub struct LinearMemory(Vec<u8>);
 
@@ -85,6 +86,18 @@ impl LinearMemory {
     pub(crate) fn get_slice_as_str(&self, offset: u32, size: u16) -> VMResult<&str> {
         let bytes = &self.0[offset as usize..offset as usize + size as usize];
         std::str::from_utf8(bytes).map_err(|_| VMError::BytesToStringConversionError)
+    }
+
+    pub(crate) fn is_m_slice_eq(&self, left: (u32, u16), right: (u32, u16)) -> Value {
+        let (lo, ls) = left;
+        let (ro, rs) = right;
+        if ls != rs {
+            return FALSE_VAL;
+        }
+        if lo == ro {
+            return TRUE_VAL;
+        }
+        to_bool_val(self.get_slice_bytes(lo, ls) == self.get_slice_bytes(ro, rs))
     }
 
     //check if correct

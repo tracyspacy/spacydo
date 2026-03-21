@@ -84,7 +84,7 @@ pub(crate) const fn to_calldata_val(idx: u32) -> Value {
     make_scalar_tagged(TAG_CALLDATA, idx)
 }
 
-const fn to_bool_val(b: bool) -> Value {
+pub(crate) const fn to_bool_val(b: bool) -> Value {
     if b { TRUE_VAL } else { FALSE_VAL }
 }
 
@@ -104,7 +104,7 @@ const fn is_scalar(v: Value) -> bool {
 }
 
 #[inline]
-const fn is_vec(v: Value) -> bool {
+pub(crate) const fn is_vec(v: Value) -> bool {
     is_sign_bit(v) && is_qnan(v)
 }
 
@@ -134,7 +134,7 @@ pub(crate) const fn tag(v: Value) -> VMResult<u64> {
 }
 
 #[inline]
-const fn bool_not(v: Value) -> Value {
+pub(crate) const fn bool_not(v: Value) -> Value {
     v ^ 1
 }
 
@@ -171,12 +171,6 @@ pub(crate) fn value_eq(left: Value, right: Value) -> VMResult<Value> {
     } else {
         match tag_left {
             TAG_U32 | TAG_CALLDATA => Ok(to_bool_val(to_u32(left) == to_u32(right))),
-            //remove!
-            TAG_STRING => {
-                let (_, s_l) = to_fat_pointer(left)?;
-                let (_, s_r) = to_fat_pointer(right)?;
-                Ok(to_bool_val(s_l == s_r))
-            }
             TAG_TRUE | TAG_FALSE => Ok(to_bool_val(left == right)),
             _ => Err(VMError::InvalidType),
         }
@@ -205,7 +199,6 @@ pub(crate) enum ValueType {
     String, // basicaly vec, probably rename
     CallData,
     Bool,
-    /* MemSlice, */
     VecU32,
     Null,
 }
