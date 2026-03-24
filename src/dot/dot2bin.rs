@@ -32,7 +32,6 @@ pub fn dot2bin(src: &str) -> VMResult<Vec<u8>> {
     let mut bytecode: Vec<u8> = Vec::new();
     // check on assembly nested ifs
     let mut jump_dest_stack: JumpStack = JumpStack::default();
-    let mut primitive_bump: u32 = 0;
     while let Some((i, token)) = tokens.next() {
         match token {
             "PUSH_U32" => {
@@ -45,27 +44,25 @@ pub fn dot2bin(src: &str) -> VMResult<Vec<u8>> {
                 bytecode.extend_from_slice(&value.to_be_bytes());
             }
 
-            // [offset:32bits][size:16bits][TAG:8bits][SIGN:8bits][PAYLOAD]
+            // dot is not aware of memory, so it requests alloc, not specifying offset (at least for now)
+            // [size:16bits][TAG:8bits][SIGN:8bits][PAYLOAD]
             // it will restrinct size of string to 65535 bytes
-            // for "hello" at offset 0x00000000 : [00 00 00 00] [00 05] [06] [01] [68 65 6C 6C 6F]
+            // for "hello"  [00 05] [06] [01] [68 65 6C 6C 6F]
             "PUSH_STRING" => {
                 bytecode.push(M_STA);
                 let (_pos, text) = next_token(&mut tokens, i, "missing String")?;
                 let text_bytes = text.as_bytes();
-                let offset = primitive_bump.to_be_bytes();
                 //len of bytes bytes
                 let size =
                     u16::try_from(text_bytes.len()).map_err(|_| VMError::InstructionSizeError {
                         context: "String size exceeded limit",
                         max: u16::MAX as u32,
                     })?;
-                bytecode.extend_from_slice(&offset);
                 bytecode.extend_from_slice(&size.to_be_bytes());
                 bytecode.push(TAG_STRING);
                 //signaling byte 1 == with payload
                 bytecode.push(W_PAYLOAD);
                 bytecode.extend_from_slice(text_bytes);
-                primitive_bump += size as u32;
             }
 
             "NEW_VEC_U32" => {
@@ -79,13 +76,10 @@ pub fn dot2bin(src: &str) -> VMResult<Vec<u8>> {
                     value: text.into(),
                 })?;
                 let size_in_bytes = size * 4;
-                let offset = primitive_bump.to_be_bytes();
-                bytecode.extend_from_slice(&offset);
                 bytecode.extend_from_slice(&size_in_bytes.to_be_bytes());
                 bytecode.push(TAG_U32);
                 //signaling byte 0 == without payload
                 bytecode.push(WO_PAYLOAD);
-                primitive_bump += size_in_bytes as u32;
             }
 
             "PUSH_STATE" => {

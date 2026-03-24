@@ -1,5 +1,5 @@
 use serial_test::serial;
-use spacydo::{Return, Task, TaskState, VM, VMError, VMResult};
+use spacydo::{Task, TaskState, VM, VMError, VMResult};
 
 use std::fs;
 
@@ -190,15 +190,11 @@ fn test_write_memory() {
     let stack = vm.run().unwrap();
     let unboxed = vm.unbox(&stack).collect::<VMResult<Vec<_>>>().unwrap();
     // since vec u32 -> each elemen u32 == 4 bytes -> 100*4
-    assert_eq!(unboxed[0].as_vec_u32().unwrap(), (0, 400));
-    let memory: Vec<u32> = vm
-        .return_memory(0, 400)
-        .map(|r| r.unwrap().as_u32().unwrap())
-        .collect();
+    let left = unboxed[0].as_vec_u32().unwrap();
     let right: Vec<u32> = (0..100).collect();
-    dbg!(&memory);
+    dbg!(&left);
     dbg!(&right);
-    assert_eq!(memory, right);
+    assert_eq!(left, right);
 }
 
 #[test]
@@ -209,26 +205,14 @@ fn test_write_memory_null_vals() {
             .unwrap();
     let mut vm = VM::init(bytecode).unwrap();
     let raw_stack = vm.run().unwrap();
-    let (offset, size) = vm
-        .unbox(&raw_stack)
-        .next()
-        .unwrap()
-        .unwrap()
-        .as_vec_u32()
-        .unwrap();
-    let memory = vm
-        .return_memory(offset, size as u32)
-        .collect::<VMResult<Vec<_>>>()
-        .unwrap();
     assert_eq!(
-        memory,
-        vec![
-            Return::U32(0),
-            Return::U32(1),
-            Return::U32(0),
-            Return::U32(3),
-            Return::U32(0),
-        ]
+        vm.unbox(&raw_stack)
+            .next()
+            .unwrap()
+            .unwrap()
+            .as_vec_u32()
+            .unwrap(),
+        &[0, 1, 0, 3, 0,]
     );
 }
 

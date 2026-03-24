@@ -17,26 +17,23 @@ impl LinearMemory {
     pub(crate) fn new() -> Self {
         Self(Vec::new())
     }
-    // for storage allocating stringsẞ
-    //probably rename error
-    pub(crate) fn alloc_auto(&mut self, bytes: &[u8]) -> VMResult<(u32, u16)> {
-        let offset = self.0.len() as u32;
-        let size = u16::try_from(bytes.len()).map_err(|_| VMError::InstructionSizeError {
-            context: "size exceeded limit",
-            max: u16::MAX as u32,
-        })?;
-        self.0.extend_from_slice(bytes);
-        Ok((offset, size))
+
+    //the purpose is to align string and especially vec u32 acorrectly.
+    // it may be string with len 2 before, that will lead to incorrect allignment of vec
+    // works: 1-4 => 4 , 5-8 => 8 etc
+    // also important to check proposed offset by assembler and not allow to overlay
+    fn offset_aligned(&self, tag: u8) -> u32 {
+        match tag as u64 {
+            TAG_U32 => (self.len() + 3) & !3,
+            _ => self.len(),
+        }
     }
 
     // accepts size in bytes
-    pub(crate) fn alloc_manual(
-        &mut self,
-        offset: u32,
-        size: u16,
-        tag: u8,
-        payload: &[u8],
-    ) -> VMResult<Value> {
+    // gets aligned offset
+    // since we have 2 sourses -> load and bytecode (dot) without coordination, auto alloc is safer option
+    pub(crate) fn alloc(&mut self, size: u16, tag: u8, payload: &[u8]) -> VMResult<Value> {
+        let offset = self.offset_aligned(tag);
         let end = offset as usize + size as usize;
         if end > self.0.len() {
             self.0.resize(end, 0u8);
@@ -45,7 +42,6 @@ impl LinearMemory {
         if !payload.is_empty() {
             self.0[offset as usize..end].copy_from_slice(payload);
         }
-
         let val = match tag as u64 {
             TAG_STRING => to_string_vec_val(offset, size)?,
             TAG_U32 => to_u32_vec_val(offset, size)?,
@@ -70,7 +66,7 @@ impl LinearMemory {
             });
         }
         let abs_index = offset as usize + index as usize * element_size_bytes;
-        let payload_bytes = payload.to_be_bytes();
+        let payload_bytes = payload.to_ne_bytes();
         // shortcut as we use u32 payload -> payload_bytes gives us [0x00,0x00,0x00,0x00]
         // if 4 bytes -> [4 - 4 ..] (all 4 bytes) - for vec u32 vals
         // if 1 byte -> [4 - 1.. ] ([3..] low byte) - for string vals
@@ -82,10 +78,33 @@ impl LinearMemory {
     pub(crate) fn get_slice_bytes(&self, offset: u32, size: u16) -> &[u8] {
         &self.0[offset as usize..offset as usize + size as usize]
     }
-
     pub(crate) fn get_slice_as_str(&self, offset: u32, size: u16) -> VMResult<&str> {
         let bytes = &self.0[offset as usize..offset as usize + size as usize];
         std::str::from_utf8(bytes).map_err(|_| VMError::BytesToStringConversionError)
+    }
+
+    //reinterpreting &[u8] as &[u32]
+    // unlike from_raw_parts not cause ub, just populates suffix and prefix even if size is wrong?
+    // https://doc.rust-lang.org/std/slice/fn.from_raw_parts.html
+    // https://doc.rust-lang.org/std/primitive.slice.html#method.align_to
+
+    pub(crate) fn get_slice_as_u32(
+        &self,
+        offset: u32,
+        size: u16,
+        //  tag: u8,
+    ) -> VMResult<&[u32]> {
+        let bytes = self.get_slice_bytes(offset, size);
+        if !core::mem::size_of_val::<[u8]>(bytes).is_multiple_of(size_of::<u32>()) {
+            //size error
+            return Err(VMError::U8toU32ReinterpetationError);
+        }
+        let (prefix, aligned_u32, suffix) = unsafe { bytes.align_to::<u32>() };
+        if !prefix.is_empty() || !suffix.is_empty() {
+            // alignment error
+            return Err(VMError::U8toU32ReinterpetationError);
+        }
+        Ok(aligned_u32)
     }
 
     pub(crate) fn is_m_slice_eq(&self, left: (u32, u16), right: (u32, u16)) -> Value {
@@ -100,15 +119,7 @@ impl LinearMemory {
         to_bool_val(self.get_slice_bytes(lo, ls) == self.get_slice_bytes(ro, rs))
     }
 
-    //check if correct
-    // keep unused for now
-    /* pub(crate) fn get_mem_slice_typed(&self, offset: u32, size: u16, tag: u64) -> VMResult<&[u8]> {
-        let element_size_bytes = element_size_bytes(tag)?;
-        let size_in_bytes = size as usize * element_size_bytes;
-        Ok(&self.0[offset as usize..offset as usize + size_in_bytes])
+    pub(crate) fn len(&self) -> u32 {
+        self.0.len() as u32
     }
-    pub(crate) fn len(&self) -> usize {
-        self.0.len()
-    }
-    */
 }

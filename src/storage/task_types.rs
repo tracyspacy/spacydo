@@ -1,7 +1,7 @@
-use crate::LinearMemory;
 use crate::errors::{VMError, VMResult};
+use crate::memory::LinearMemory;
 use crate::pools::InstructionsPool;
-
+use crate::values::{TAG_STRING, to_fat_pointer};
 #[derive(Debug, Clone)]
 pub struct Task {
     pub id: u32,
@@ -23,7 +23,9 @@ impl TaskVM {
         memory: &mut LinearMemory,
         instructions_pool: &mut InstructionsPool,
     ) -> VMResult<Self> {
-        let (offset, size) = memory.alloc_auto(task.title.as_bytes())?;
+        let title = task.title.as_bytes();
+        let (offset, size) =
+            to_fat_pointer(memory.alloc(title.len() as u16, TAG_STRING as u8, title)?)?;
         let inst_ref = instructions_pool.intern_instructions(task.instructions);
 
         Ok(Self {

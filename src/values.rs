@@ -231,7 +231,7 @@ pub enum Return<'a> {
     String(&'a str),
     CallData(&'a [u8]),
     Bool(bool),
-    VecU32(u32, u16),
+    VecU32(&'a [u32]),
     Null,
 }
 
@@ -263,9 +263,9 @@ impl<'a> Return<'a> {
         }
     }
 
-    pub fn as_vec_u32(&self) -> VMResult<(u32, u16)> {
+    pub fn as_vec_u32(&self) -> VMResult<&[u32]> {
         match self {
-            Return::VecU32(o, s) => Ok((*o, *s)),
+            Return::VecU32(v) => Ok(*v),
             _ => Err(VMError::TypeMismatch),
         }
     }

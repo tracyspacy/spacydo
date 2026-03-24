@@ -67,20 +67,6 @@ impl VM {
         task_vm.to_task(&self.memory, &self.instructions_pool)
     }
 
-    // remove
-    // short term patch for vec u32
-    pub fn return_memory<'a>(
-        &'a self,
-        offset: u32,
-        size: u32,
-    ) -> impl Iterator<Item = VMResult<Return<'a>>> {
-        let bytes = self.memory.get_slice_bytes(offset, size as u16);
-        bytes.chunks_exact(4).map(|chunk| {
-            let val = u32::from_be_bytes(chunk.try_into().unwrap());
-            Ok(Return::U32(val))
-        })
-    }
-
     #[cfg(feature = "dot")]
     pub fn dot2bin(instructions: &str) -> VMResult<Vec<u8>> {
         dot2bin(instructions)
@@ -98,6 +84,9 @@ impl VM {
     }
 
     pub fn run(&mut self) -> VMResult<Stack> {
+        //need to reset linear memory on run! - vm owns memory, lives only between runs
+        //self.memory = LinearMemory::new();
+
         let mut instructions_ref = self
             .call_stack
             .last()
@@ -305,8 +294,6 @@ impl VM {
                 // accepts size in Bytes . same for string and vec u32
                 //
                 M_STA => {
-                    let offset = prepare_u32_from_be_checked(instructions, pc)?;
-                    pc += 4;
                     let size = prepare_u16_from_be_checked(instructions, pc)?;
                     pc += 2;
                     let tag = instructions[pc];
@@ -318,7 +305,7 @@ impl VM {
                         payload = &instructions[pc..pc + size as usize];
                         pc += size as usize;
                     }
-                    let val = self.memory.alloc_manual(offset, size, tag, payload)?;
+                    let val = self.memory.alloc(size, tag, payload)?;
                     self.stack.push(val)?;
                 }
                 //mutate at address
@@ -393,6 +380,7 @@ impl VM {
             ValueType::Bool => Ok(Return::Bool(val == TRUE_VAL)),
             ValueType::String => {
                 let (offset, size) = to_fat_pointer(val)?;
+                println!("String {:?}{:?}", offset, size);
                 let str = &self.memory.get_slice_as_str(offset, size)?;
                 Ok(Return::String(str))
             }
@@ -403,7 +391,9 @@ impl VM {
             ValueType::VecU32 => {
                 //keep as it is for now
                 let (offset, size) = to_fat_pointer(val)?;
-                Ok(Return::VecU32(offset, size))
+                println!("Vector {:?}{:?}", offset, size);
+                let u32_slice = self.memory.get_slice_as_u32(offset, size)?;
+                Ok(Return::VecU32(u32_slice))
             }
             ValueType::Null => Ok(Return::Null),
         }
