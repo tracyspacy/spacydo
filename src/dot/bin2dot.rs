@@ -11,9 +11,6 @@ const JUMP_STACK_LIMIT: usize = 2;
 type JumpStack = InlineVec<u32, JUMP_STACK_LIMIT>;
 //replce or import?
 const TAG_STRING: u8 = 4;
-const TAG_U32: u8 = 6;
-//signaling byte
-const WO_PAYLOAD: u8 = 0;
 const W_PAYLOAD: u8 = 1;
 
 pub fn bin2dot(bytecode: &[u8]) -> VMResult<String> {

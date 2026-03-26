@@ -46,7 +46,7 @@ const TAG_CALLDATA: u64 = 5;
 pub(crate) const TAG_U32: u64 = 6;
 pub(crate) const FALSE_VAL: Value = QNAN | (TAG_FALSE);
 pub(crate) const TRUE_VAL: Value = QNAN | (TAG_TRUE);
-pub(crate) const NULL_VAL: Value = QNAN | (TAG_NULL);
+//pub(crate) const NULL_VAL: Value = QNAN | (TAG_NULL);
 
 // fat poiner to a vec (offset , size)
 #[inline]
