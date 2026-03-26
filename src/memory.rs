@@ -49,7 +49,8 @@ impl LinearMemory {
         };
         Ok(val)
     }
-
+    //todo
+    //check endianness for the whole vm!
     pub(crate) fn mut_vec(
         &mut self,
         offset: u32,
@@ -68,10 +69,10 @@ impl LinearMemory {
         let abs_index = offset as usize + index as usize * element_size_bytes;
         let payload_bytes = payload.to_ne_bytes();
         // shortcut as we use u32 payload -> payload_bytes gives us [0x00,0x00,0x00,0x00]
-        // if 4 bytes -> [4 - 4 ..] (all 4 bytes) - for vec u32 vals
-        // if 1 byte -> [4 - 1.. ] ([3..] low byte) - for string vals
+        // if 4 bytes -> [.. element_size_bytes] (all 4 bytes) - for vec u32 vals
+        // if 1 byte -> [.. element_size_bytes ] ([..1] low byte) - for string vals
         self.0[abs_index..abs_index + element_size_bytes]
-            .copy_from_slice(&payload_bytes[4 - element_size_bytes..]);
+            .copy_from_slice(&payload_bytes[..element_size_bytes]);
         Ok(())
     }
 
