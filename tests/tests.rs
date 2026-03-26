@@ -182,10 +182,11 @@ fn test_drop_if_false() {
 #[test]
 #[serial] //?
 fn test_write_memory() {
-    // memory slice 0..100 => in loop 0..100 fills slice with loop index  => stack contains slice (0,100) , memory vec![0..100]
-    let bytecode =
-        VM::dot2bin("NEW_VEC_U32 100 PUSH_U32 100 PUSH_U32 0 DO LOOP_INDEX LOOP_INDEX M_MUTA LOOP")
-            .unwrap();
+    // vec u32 0..400 (100*4 bytes size) => in loop 0..100 fills slice with loop index  => stack contains slice (0,100) , memory vec![0..100]
+    let bytecode = VM::dot2bin(
+        "NEW_VEC_U32_I 400 PUSH_U32 100 PUSH_U32 0 DO LOOP_INDEX LOOP_INDEX M_MUTA LOOP",
+    )
+    .unwrap();
     let mut vm = VM::init(bytecode).unwrap();
     let stack = vm.run().unwrap();
     let unboxed = vm.unbox(&stack).collect::<VMResult<Vec<_>>>().unwrap();
@@ -200,9 +201,10 @@ fn test_write_memory() {
 #[test]
 #[serial]
 fn test_write_memory_null_vals() {
-    let bytecode =
-        VM::dot2bin("NEW_VEC_U32 5 PUSH_U32 1 PUSH_U32 1 M_MUTA PUSH_U32 3 PUSH_U32 3 M_MUTA")
-            .unwrap();
+    let bytecode = VM::dot2bin(
+        "PUSH_U32 5 MULI 4 NEW_VEC_U32 PUSH_U32 1 PUSH_U32 1 M_MUTA PUSH_U32 3 PUSH_U32 3 M_MUTA",
+    )
+    .unwrap();
     let mut vm = VM::init(bytecode).unwrap();
     let raw_stack = vm.run().unwrap();
     assert_eq!(
@@ -216,15 +218,35 @@ fn test_write_memory_null_vals() {
     );
 }
 
-/* #[test]
+#[test]
 #[serial]
 // max vec u32 size value is 2^16/4
 fn test_write_memory_error() {
-    let bytecode = VM::dot2bin("NEW_VEC_U32 17000").unwrap();
+    let bytecode = VM::dot2bin("PUSH_U32 20000 MULI 4 NEW_VEC_U32").unwrap();
     let mut vm = VM::init(bytecode).unwrap();
     let err = vm.run();
     assert!(matches!(err, Err(VMError::MSliceParamOverflow)));
-} */
+}
+
+#[test]
+#[serial]
+// mul overflow test
+fn test_mul_overflow() {
+    let bytecode = VM::dot2bin("PUSH_U32 2 PUSH_U32 4294967295 MUL").unwrap();
+    let mut vm = VM::init(bytecode).unwrap();
+    let err = vm.run();
+    assert!(matches!(err, Err(VMError::MultiplicationOverflowed)));
+}
+
+#[test]
+#[serial]
+// mul overflow test
+fn test_muli_overflow() {
+    let bytecode = VM::dot2bin("PUSH_U32 4294967295 MULI 2").unwrap();
+    let mut vm = VM::init(bytecode).unwrap();
+    let err = vm.run();
+    assert!(matches!(err, Err(VMError::MultiplicationOverflowed)));
+}
 
 #[test]
 #[serial]

@@ -329,7 +329,7 @@ impl VM {
                 M_ST => {
                     // pop size
                     let size = u16::try_from(to_u32(self.stack.pop()?))
-                        .map_err(|_| VMError::StorageSizeTooBig)?;
+                        .map_err(|_| VMError::MSliceParamOverflow)?;
                     let tag = instructions[pc];
                     pc += 1;
                     let val = self.memory.alloc(size, tag, &[])?;
