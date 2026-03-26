@@ -70,7 +70,7 @@ fn test_if_then_false_nested() {
     let unboxed = vm.unbox(&stack).collect::<VMResult<Vec<_>>>().unwrap();
     assert_eq!(unboxed[0].as_u32().unwrap(), 3);
 }
-/*
+
 // instruction disassembly test, probably remove later
 #[test]
 #[serial] //?
@@ -84,7 +84,7 @@ fn test_disassembly_if_then() {
     dbg!(&disassembled_bytecode);
     assert_eq!(instructions, disassembled_bytecode);
 }
-*/
+
 #[test]
 #[serial] //?
 fn test_dup() {

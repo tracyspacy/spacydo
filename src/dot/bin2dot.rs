@@ -9,6 +9,12 @@ use std::fmt::Write;
 // make configurabe and put in same place with ControlStack and CallStack
 const JUMP_STACK_LIMIT: usize = 2;
 type JumpStack = InlineVec<u32, JUMP_STACK_LIMIT>;
+//replce or import?
+const TAG_STRING: u8 = 4;
+const TAG_U32: u8 = 6;
+//signaling byte
+const WO_PAYLOAD: u8 = 0;
+const W_PAYLOAD: u8 = 1;
 
 pub fn bin2dot(bytecode: &[u8]) -> VMResult<String> {
     let mut result = String::new();
@@ -24,15 +30,6 @@ pub fn bin2dot(bytecode: &[u8]) -> VMResult<String> {
                 let v = prepare_u32_from_be_checked(bytecode, pc)?; // change?
                 write!(&mut result, "{} ", v).map_err(|_| VMError::WriteError)?;
                 pc += 4;
-            }
-            PUSH_STRING => {
-                result.push_str("PUSH_STRING ");
-                let size = bytecode[pc] as usize;
-                pc += 1;
-                let str = std::str::from_utf8(&bytecode[pc..pc + size]).unwrap();
-                result.push_str(str);
-                result.push(' ');
-                pc += size;
             }
             PUSH_STATE => {
                 result.push_str("PUSH_STATE ");
@@ -76,6 +73,39 @@ pub fn bin2dot(bytecode: &[u8]) -> VMResult<String> {
                 }
                 result.push_str(" ] ");
             }
+            //[opcode][tag byte]
+            M_ST => {
+                result.push_str("NEW_VEC_U32 ");
+                // we need skip tag byte
+                pc += 1;
+            }
+            //[opcode][size: 2 bytes][tag: 1 byte][sign_byte: 1 byte][?payload]
+            // rn it is either PUSH_STRING or NEW_VEC_U32_I
+            M_STI => {
+                let size = prepare_u16_from_be_checked(bytecode, pc)? as usize;
+                pc += 2;
+                let tag = prepare_u8(bytecode, pc)?;
+                pc += 1;
+                let sign_byte = prepare_u8(bytecode, pc)?;
+                pc += 1;
+                if tag == &TAG_STRING && sign_byte == &W_PAYLOAD {
+                    result.push_str("PUSH_STRING ");
+                    let str = std::str::from_utf8(&bytecode[pc..pc + size]).unwrap();
+                    result.push_str(str);
+                    result.push(' ');
+                    pc += size;
+                } else {
+                    result.push_str("NEW_VEC_U32_I ");
+                    write!(&mut result, "{} ", size).map_err(|_| VMError::WriteError)?;
+                }
+            }
+
+            MULI => {
+                result.push_str("MULI ");
+                let v = prepare_u32_from_be_checked(bytecode, pc)?;
+                write!(&mut result, "{} ", v).map_err(|_| VMError::WriteError)?;
+                pc += 4;
+            }
 
             T_CREATE => result.push_str("T_CREATE "),
             T_GET_FIELD => result.push_str("T_GET_FIELD "),
@@ -96,6 +126,9 @@ pub fn bin2dot(bytecode: &[u8]) -> VMResult<String> {
             NEQ => result.push_str("NEQ "),
             LT => result.push_str("LT "),
             GT => result.push_str("GT "),
+            MUL => result.push_str("MUL "),
+            M_MUTA => result.push_str("M_MUTA "),
+
             _ => {}
         }
 

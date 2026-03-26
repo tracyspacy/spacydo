@@ -65,7 +65,9 @@ pub fn dot2bin(src: &str) -> VMResult<Vec<u8>> {
                 bytecode.extend_from_slice(text_bytes);
             }
             // immediate -> size, tag and payload  bytes following opcode
-            // to avoid confusion size shoulf be in bytes
+            // [size:16bits][TAG:8bits][SIGN:8bits]
+            // to avoid confusion size should be in bytes
+            //
             "NEW_VEC_U32_I" => {
                 bytecode.push(M_STI);
                 let (pos, text) = next_token(&mut tokens, i, "missing size")?;
