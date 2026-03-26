@@ -49,7 +49,7 @@ pub fn dot2bin(src: &str) -> VMResult<Vec<u8>> {
             // it will restrinct size of string to 65535 bytes
             // for "hello"  [00 05] [06] [01] [68 65 6C 6C 6F]
             "PUSH_STRING" => {
-                bytecode.push(M_STA);
+                bytecode.push(M_STI);
                 let (_pos, text) = next_token(&mut tokens, i, "missing String")?;
                 let text_bytes = text.as_bytes();
                 //len of bytes bytes
@@ -66,7 +66,7 @@ pub fn dot2bin(src: &str) -> VMResult<Vec<u8>> {
             }
 
             "NEW_VEC_U32" => {
-                bytecode.push(M_STA);
+                bytecode.push(M_STI);
                 let (pos, text) = next_token(&mut tokens, i, "missing size")?;
                 // dot is a higher level, so it converts elements to size in bytes
                 // elements * 4 bytes
@@ -80,6 +80,11 @@ pub fn dot2bin(src: &str) -> VMResult<Vec<u8>> {
                 bytecode.push(TAG_U32);
                 //signaling byte 0 == without payload
                 bytecode.push(WO_PAYLOAD);
+            }
+
+            "NEW_VEC_U32_I" => {
+                bytecode.push(M_ST);
+                bytecode.push(TAG_U32);
             }
 
             "PUSH_STATE" => {
@@ -232,8 +237,11 @@ pub fn dot2bin(src: &str) -> VMResult<Vec<u8>> {
             "M_MUTA" => {
                 bytecode.push(M_MUTA);
             }
-            "M_STA" => {
-                bytecode.push(M_STA);
+            "M_STI" => {
+                bytecode.push(M_STI);
+            }
+            "M_ST" => {
+                bytecode.push(M_ST);
             }
             _ => {
                 return Err(VMError::UnknownOpcode {

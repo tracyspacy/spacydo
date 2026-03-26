@@ -130,23 +130,17 @@ fn show() {
     let bytecode = VM::dot2bin(SHOW).unwrap();
     let mut vm = VM::init(bytecode).unwrap();
     let stack = vm.run().unwrap();
-    let (offset, size) = vm
+    let vec_u32 = vm
         .unbox(&stack)
         .next()
         .unwrap()
         .unwrap()
         .as_vec_u32()
-        .unwrap();
+        .unwrap()
+        .to_vec();
 
-    let task_ids: Vec<u32> = vm
-        .return_memory(offset, size as u32)
-        .filter_map(|r| match r.unwrap() {
-            Return::U32(val) => Some(val),
-            _ => None,
-        })
-        .collect();
     let tasks: [Task; 18] = std::array::from_fn(|i| {
-        let id = task_ids[i];
+        let id = vec_u32[i];
         vm.print_task(id).unwrap()
     });
 
@@ -182,7 +176,6 @@ fn show_and_gate(tasks: &[Task]) {
         inverted_bits[1].state.state,
         inverted_bits[0].state.state
     );
-
     println!();
     println!("{:9} ───────────┐", and_gate_input[3]);
     println!("{:9} ───────────┼──┐", and_gate_input[2]);

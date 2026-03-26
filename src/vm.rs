@@ -292,8 +292,8 @@ impl VM {
                     self.stack.push(value_cmp(left, right, false)?)?;
                 }
                 // accepts size in Bytes . same for string and vec u32
-                //
-                M_STA => {
+                // memory store immediate - use next bytes following opcode
+                M_STI => {
                     let size = prepare_u16_from_be_checked(instructions, pc)?;
                     pc += 2;
                     let tag = instructions[pc];
@@ -308,6 +308,19 @@ impl VM {
                     let val = self.memory.alloc(size, tag, payload)?;
                     self.stack.push(val)?;
                 }
+                // keeping tag immediate
+                // no sign byte for payload, no payload
+                // size in BYTES comes from stack
+                M_ST => {
+                    // pop size
+                    let size = u16::try_from(to_u32(self.stack.pop()?))
+                        .map_err(|_| VMError::StorageSizeTooBig)?;
+                    let tag = instructions[pc];
+                    pc += 1;
+                    let val = self.memory.alloc(size, tag, &[])?;
+                    self.stack.push(val)?;
+                }
+
                 //mutate at address
                 //
                 M_MUTA => {
@@ -380,7 +393,6 @@ impl VM {
             ValueType::Bool => Ok(Return::Bool(val == TRUE_VAL)),
             ValueType::String => {
                 let (offset, size) = to_fat_pointer(val)?;
-                println!("String {:?}{:?}", offset, size);
                 let str = &self.memory.get_slice_as_str(offset, size)?;
                 Ok(Return::String(str))
             }
@@ -391,7 +403,6 @@ impl VM {
             ValueType::VecU32 => {
                 //keep as it is for now
                 let (offset, size) = to_fat_pointer(val)?;
-                println!("Vector {:?}{:?}", offset, size);
                 let u32_slice = self.memory.get_slice_as_u32(offset, size)?;
                 Ok(Return::VecU32(u32_slice))
             }

@@ -57,7 +57,8 @@ example: PUSH_U32 0 DUP CALL (execute task 0 instructions)
 VM Memory is linear bytes array Vec<u8>, grows dynamically , but technically length is restricted by offset 25 bits -> max addressable offset is 2^25-1= 33_554_431
 each memory slice is represented by nan-boxed vec [offset:25 bits][size:16bits][tag:3]
 where *offset* is starting byte address in linear memory, *size* is number of bytes , *tag* - vector element type (u32,byte)
-M_STA - Memory Store At - allocates bytes to memory and returns nan-boxed vec_val on stack [offset:25 bits][size:16bits][tag:3]
+M_STI - Memory Store Immediate (following bytes afte opcode: [size:16bits][TAG:8bits][SIGN:8bits][PAYLOAD])- allocates bytes to memory and returns nan-boxed vec_val on stack [offset:25 bits][size:16bits][tag:3]
+M_ST - Memory Store (followed only by : [tag:8bits])- allocates empty vec to memory and returns nan-boxed vec_val on stack [offset:25 bits][size:16bits][tag:3]
 M_MUT -Memory Mutate At - mutates memory at address in existing memory slice - takes 3 parameters:  vec, index, value  -> pop value, pop index, peek vec -> writes value at index to memory slice.
 Important, vec[offset:25 bits][size:16bits][tag:3] remains on stack!
 
@@ -97,5 +98,6 @@ pub const GT: u8 = 0x19; // "greater than" - [left,right] returns true only if l
 
 pub const JUMP_IF_FALSE: u8 = 0x1a; //
 
-pub const M_STA: u8 = 0x1b;
-pub const M_MUTA: u8 = 0x1c;
+pub const M_STI: u8 = 0x1b;
+pub const M_ST: u8 = 0x1c;
+pub const M_MUTA: u8 = 0x1d;
