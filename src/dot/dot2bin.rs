@@ -64,25 +64,23 @@ pub fn dot2bin(src: &str) -> VMResult<Vec<u8>> {
                 bytecode.push(W_PAYLOAD);
                 bytecode.extend_from_slice(text_bytes);
             }
-
-            "NEW_VEC_U32" => {
+            // immediate -> size, tag and payload  bytes following opcode
+            // to avoid confusion size shoulf be in bytes
+            "NEW_VEC_U32_I" => {
                 bytecode.push(M_STI);
                 let (pos, text) = next_token(&mut tokens, i, "missing size")?;
-                // dot is a higher level, so it converts elements to size in bytes
-                // elements * 4 bytes
                 //size should be in bytes! so vm work with bytes sizes
                 let size = text.parse::<u16>().map_err(|_| VMError::InvalidUINT {
                     command: pos,
                     value: text.into(),
                 })?;
-                let size_in_bytes = size * 4;
-                bytecode.extend_from_slice(&size_in_bytes.to_be_bytes());
+                bytecode.extend_from_slice(&size.to_be_bytes());
                 bytecode.push(TAG_U32);
                 //signaling byte 0 == without payload
                 bytecode.push(WO_PAYLOAD);
             }
 
-            "NEW_VEC_U32_I" => {
+            "NEW_VEC_U32" => {
                 bytecode.push(M_ST);
                 bytecode.push(TAG_U32);
             }
