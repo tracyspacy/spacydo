@@ -163,6 +163,29 @@ pub const fn to_fat_pointer(v: Value) -> VMResult<(u32, u16)> {
     Ok((offset, size))
 }
 
+pub(crate) fn mul_checked(lhs: Value, rhs: Value) -> VMResult<Value> {
+    if !is_u32_val(lhs) || !is_u32_val(rhs) {
+        Err(VMError::InvalidType)
+    } else {
+        let l = to_u32(lhs);
+        let r = to_u32(rhs);
+        let u32_res = l.checked_mul(r).ok_or(VMError::MultiplicationOverflowed)?;
+        Ok(to_u32_val(u32_res))
+    }
+}
+
+pub(crate) fn mul_checked_i(lhs: Value, rhs: u32) -> VMResult<Value> {
+    if !is_u32_val(lhs) {
+        Err(VMError::InvalidType)
+    } else {
+        let l = to_u32(lhs);
+        let u32_res = l
+            .checked_mul(rhs)
+            .ok_or(VMError::MultiplicationOverflowed)?;
+        Ok(to_u32_val(u32_res))
+    }
+}
+
 pub(crate) fn value_eq(left: Value, right: Value) -> VMResult<Value> {
     let tag_left = tag(left)?;
     let tag_right = tag(right)?;

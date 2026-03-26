@@ -114,6 +114,19 @@ pub fn dot2bin(src: &str) -> VMResult<Vec<u8>> {
                 })?;
                 bytecode.push(value);
             }
+            "MUL" => {
+                bytecode.push(MUL);
+            }
+            // u32 value - 4 bytes following opcode
+            "MULI" => {
+                bytecode.push(MULI);
+                let (pos, text) = next_token(&mut tokens, i, "missing u32")?;
+                let value = text.parse::<u32>().map_err(|_| VMError::InvalidUINT {
+                    command: pos,
+                    value: text.into(),
+                })?;
+                bytecode.extend_from_slice(&value.to_be_bytes());
+            }
 
             "IF" => {
                 bytecode.push(JUMP_IF_FALSE);

@@ -58,6 +58,8 @@ pub enum VMError {
     },
     BytesToStringConversionError,
     U8toU32ReinterpetationError,
+    // arithmetic errors
+    MultiplicationOverflowed,
 }
 
 pub type VMResult<T> = Result<T, VMError>;

@@ -123,6 +123,21 @@ impl VM {
                     pc += 1;
                 }
 
+                MUL => {
+                    let lhs = self.stack.pop()?;
+                    let rhs = self.stack.pop()?;
+                    let res = mul_checked(lhs, rhs)?;
+                    self.stack.push(res)?
+                }
+
+                MULI => {
+                    let lhs = self.stack.pop()?;
+                    let rhs = prepare_u32_from_be_checked(instructions, pc)?;
+                    pc += 4;
+                    let res = mul_checked_i(lhs, rhs)?;
+                    self.stack.push(res)?
+                }
+
                 T_CREATE => {
                     let instructions_ref = to_u32(self.stack.pop()?);
                     let max_states = to_u32(self.stack.pop()?);

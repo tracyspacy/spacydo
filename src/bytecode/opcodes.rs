@@ -62,6 +62,9 @@ M_ST - Memory Store (followed only by : [tag:8bits])- allocates empty vec to mem
 M_MUT -Memory Mutate At - mutates memory at address in existing memory slice - takes 3 parameters:  vec, index, value  -> pop value, pop index, peek vec -> writes value at index to memory slice.
 Important, vec[offset:25 bits][size:16bits][tag:3] remains on stack!
 
+### ARITHMETIC
+MUL - multiplication - pops 2 values from stack, multiplies them and pushes result to stack [2,3, MUL] -> [6]
+MULI - multiplication immediate value bytes following opcode - pops 1 value multiplicates to specified value and pushes result to stack [2, MULI 3] -> [6]
 */
 
 // TODO: since new opcodes will be added , need to reserve some space in categories.
@@ -101,3 +104,7 @@ pub const JUMP_IF_FALSE: u8 = 0x1a; //
 pub const M_STI: u8 = 0x1b;
 pub const M_ST: u8 = 0x1c;
 pub const M_MUTA: u8 = 0x1d;
+
+//
+pub const MULI: u8 = 0x1e;
+pub const MUL: u8 = 0x1f;
