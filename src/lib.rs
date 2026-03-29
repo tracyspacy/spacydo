@@ -3,6 +3,7 @@ mod bytecode;
 mod dot;
 mod errors;
 mod inlinevec;
+mod memory;
 mod pools;
 mod storage;
 mod values;

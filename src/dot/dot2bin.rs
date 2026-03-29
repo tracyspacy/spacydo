@@ -20,6 +20,12 @@ fn next_token<'a>(
 // make configurabe and put in same place with ControlStack and CallStack
 const JUMP_STACK_LIMIT: usize = 2;
 type JumpStack = InlineVec<u32, JUMP_STACK_LIMIT>;
+//replce or import?
+const TAG_STRING: u8 = 4;
+const TAG_U32: u8 = 6;
+//signaling byte
+const WO_PAYLOAD: u8 = 0;
+const W_PAYLOAD: u8 = 1;
 
 pub fn dot2bin(src: &str) -> VMResult<Vec<u8>> {
     let mut tokens = src.split_whitespace().enumerate();
@@ -37,22 +43,50 @@ pub fn dot2bin(src: &str) -> VMResult<Vec<u8>> {
                 })?;
                 bytecode.extend_from_slice(&value.to_be_bytes());
             }
-            // the idea is to assemble string as bytes array with 1 byte length
-            // it will restrinct size of string to 255 bytes ie 255 ut8 chars
-            // for "hello" : 05 68 65 6C 6C 6F
-            // ! not interning string during assembly
+
+            // dot is not aware of memory, so it requests alloc, not specifying offset (at least for now)
+            // [size:16bits][TAG:8bits][SIGN:8bits][PAYLOAD]
+            // it will restrinct size of string to 65535 bytes
+            // for "hello"  [00 05] [06] [01] [68 65 6C 6C 6F]
             "PUSH_STRING" => {
-                bytecode.push(PUSH_STRING);
+                bytecode.push(M_STI);
                 let (_pos, text) = next_token(&mut tokens, i, "missing String")?;
                 let text_bytes = text.as_bytes();
-                let text_bytes_len =
-                    u8::try_from(text_bytes.len()).map_err(|_| VMError::InstructionSizeError {
+                //len of bytes bytes
+                let size =
+                    u16::try_from(text_bytes.len()).map_err(|_| VMError::InstructionSizeError {
                         context: "String size exceeded limit",
-                        max: u8::MAX as u32,
+                        max: u16::MAX as u32,
                     })?;
-                bytecode.extend_from_slice(&[text_bytes_len]);
+                bytecode.extend_from_slice(&size.to_be_bytes());
+                bytecode.push(TAG_STRING);
+                //signaling byte 1 == with payload
+                bytecode.push(W_PAYLOAD);
                 bytecode.extend_from_slice(text_bytes);
             }
+            // immediate -> size, tag and payload  bytes following opcode
+            // [size:16bits][TAG:8bits][SIGN:8bits]
+            // to avoid confusion size should be in bytes
+            //
+            "NEW_VEC_U32_I" => {
+                bytecode.push(M_STI);
+                let (pos, text) = next_token(&mut tokens, i, "missing size")?;
+                //size should be in bytes! so vm work with bytes sizes
+                let size = text.parse::<u16>().map_err(|_| VMError::InvalidUINT {
+                    command: pos,
+                    value: text.into(),
+                })?;
+                bytecode.extend_from_slice(&size.to_be_bytes());
+                bytecode.push(TAG_U32);
+                //signaling byte 0 == without payload
+                bytecode.push(WO_PAYLOAD);
+            }
+
+            "NEW_VEC_U32" => {
+                bytecode.push(M_ST);
+                bytecode.push(TAG_U32);
+            }
+
             "PUSH_STATE" => {
                 bytecode.push(PUSH_STATE);
                 let (pos, text) = next_token(&mut tokens, i, "missing Tasks State")?;
@@ -79,6 +113,19 @@ pub fn dot2bin(src: &str) -> VMResult<Vec<u8>> {
                     value: text.into(),
                 })?;
                 bytecode.push(value);
+            }
+            "MUL" => {
+                bytecode.push(MUL);
+            }
+            // u32 value - 4 bytes following opcode
+            "MULI" => {
+                bytecode.push(MULI);
+                let (pos, text) = next_token(&mut tokens, i, "missing u32")?;
+                let value = text.parse::<u32>().map_err(|_| VMError::InvalidUINT {
+                    command: pos,
+                    value: text.into(),
+                })?;
+                bytecode.extend_from_slice(&value.to_be_bytes());
             }
 
             "IF" => {
@@ -200,11 +247,14 @@ pub fn dot2bin(src: &str) -> VMResult<Vec<u8>> {
             "GT" => {
                 bytecode.push(GT);
             }
-            "M_SLICE" => {
-                bytecode.push(M_SLICE);
+            "M_MUTA" => {
+                bytecode.push(M_MUTA);
             }
-            "M_STORE" => {
-                bytecode.push(M_STORE);
+            "M_STI" => {
+                bytecode.push(M_STI);
+            }
+            "M_ST" => {
+                bytecode.push(M_ST);
             }
             _ => {
                 return Err(VMError::UnknownOpcode {

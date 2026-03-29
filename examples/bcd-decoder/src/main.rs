@@ -30,7 +30,7 @@ PUSH_STATE 1 PUSH_U32 %OWN_ID% PUSH_TASK_FIELD 1 T_SET_FIELD S_SAVE END_CALL \
 const SET_STATE: &str =
     "PUSH_STATE %STATE_VALUE% PUSH_U32 %ID% PUSH_TASK_FIELD 1 T_SET_FIELD S_SAVE";
 
-const SHOW: &str = "PUSH_U32 0 S_LEN M_SLICE S_LEN PUSH_U32 0 DO LOOP_INDEX DUP EQ LOOP_INDEX CALL IF LOOP_INDEX LOOP_INDEX M_STORE THEN LOOP";
+const SHOW: &str = "PUSH_U32 18 MULI 4 NEW_VEC_U32 S_LEN PUSH_U32 0 DO LOOP_INDEX DUP EQ LOOP_INDEX CALL IF LOOP_INDEX LOOP_INDEX M_MUTA THEN LOOP";
 
 fn init() {
     let bytecode = VM::dot2bin("PUSH_U32 17 PUSH_TASK_FIELD 1 T_GET_FIELD").unwrap();
@@ -130,24 +130,17 @@ fn show() {
     let bytecode = VM::dot2bin(SHOW).unwrap();
     let mut vm = VM::init(bytecode).unwrap();
     let stack = vm.run().unwrap();
-    let (offset, size) = vm
+    let vec_u32 = vm
         .unbox(&stack)
         .next()
         .unwrap()
         .unwrap()
-        .as_mem_slice()
-        .unwrap();
-
-    let task_ids: Vec<u32> = vm
-        .return_memory(offset, size)
-        .filter_map(|r| match r.unwrap() {
-            Return::U32(val) => Some(val),
-            _ => None,
-        })
-        .collect();
+        .as_vec_u32()
+        .unwrap()
+        .to_vec();
 
     let tasks: [Task; 18] = std::array::from_fn(|i| {
-        let id = task_ids[i];
+        let id = vec_u32[i];
         vm.print_task(id).unwrap()
     });
 
@@ -183,7 +176,6 @@ fn show_and_gate(tasks: &[Task]) {
         inverted_bits[1].state.state,
         inverted_bits[0].state.state
     );
-
     println!();
     println!("{:9} ───────────┐", and_gate_input[3]);
     println!("{:9} ───────────┼──┐", and_gate_input[2]);

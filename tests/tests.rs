@@ -1,5 +1,5 @@
 use serial_test::serial;
-use spacydo::{Return, Task, TaskState, VM, VMError, VMResult};
+use spacydo::{Task, TaskState, VM, VMError, VMResult};
 
 use std::fs;
 
@@ -15,18 +15,6 @@ fn test_push_u32() {
     let stack = vm.run().unwrap();
     let unboxed: Vec<_> = vm.unbox(&stack).collect::<VMResult<Vec<_>>>().unwrap();
     assert_eq!(unboxed[0].as_u32().unwrap(), 1234567890);
-}
-
-#[test]
-#[serial]
-fn test_string_interning_reuses_index() {
-    clear_storage();
-    let bytecode = VM::dot2bin("PUSH_STRING hello PUSH_STRING hello").unwrap();
-    let mut vm = VM::init(bytecode).unwrap();
-    let stack = vm.run().unwrap();
-    let stack_slice = stack.as_slice();
-    assert_eq!(stack_slice.len(), 2);
-    assert_eq!(stack_slice[0], stack_slice[1]); // same intern index
 }
 
 #[test]
@@ -194,56 +182,70 @@ fn test_drop_if_false() {
 #[test]
 #[serial] //?
 fn test_write_memory() {
-    // memory slice 0..100 => in loop 0..100 fills slice with loop index  => stack contains slice (0,100) , memory vec![0..100]
-    let bytecode = VM::dot2bin("PUSH_U32 0 PUSH_U32 100 M_SLICE PUSH_U32 100 PUSH_U32 0 DO LOOP_INDEX LOOP_INDEX M_STORE LOOP").unwrap();
+    // vec u32 0..400 (100*4 bytes size) => in loop 0..100 fills slice with loop index  => stack contains slice (0,100) , memory vec![0..100]
+    let bytecode = VM::dot2bin(
+        "NEW_VEC_U32_I 400 PUSH_U32 100 PUSH_U32 0 DO LOOP_INDEX LOOP_INDEX M_MUTA LOOP",
+    )
+    .unwrap();
     let mut vm = VM::init(bytecode).unwrap();
     let stack = vm.run().unwrap();
     let unboxed = vm.unbox(&stack).collect::<VMResult<Vec<_>>>().unwrap();
-    assert_eq!(unboxed[0].as_mem_slice().unwrap(), (0, 100));
-    let memory: Vec<u32> = vm
-        .return_memory(0, 100)
-        .map(|r| r.unwrap().as_u32().unwrap())
-        .collect();
+    // since vec u32 -> each elemen u32 == 4 bytes -> 100*4
+    let left = unboxed[0].as_vec_u32().unwrap();
     let right: Vec<u32> = (0..100).collect();
-    dbg!(&memory);
+    dbg!(&left);
     dbg!(&right);
-    assert_eq!(memory, right);
+    assert_eq!(left, right);
 }
 
 #[test]
 #[serial]
 fn test_write_memory_null_vals() {
     let bytecode = VM::dot2bin(
-        "PUSH_U32 0 PUSH_U32 5 M_SLICE PUSH_U32 1 PUSH_U32 1 M_STORE PUSH_U32 3 PUSH_U32 3 M_STORE",
+        "PUSH_U32 5 MULI 4 NEW_VEC_U32 PUSH_U32 1 PUSH_U32 1 M_MUTA PUSH_U32 3 PUSH_U32 3 M_MUTA",
     )
     .unwrap();
     let mut vm = VM::init(bytecode).unwrap();
     let raw_stack = vm.run().unwrap();
-    let (offset, size) = vm
-        .unbox(&raw_stack)
-        .next()
-        .unwrap()
-        .unwrap()
-        .as_mem_slice()
-        .unwrap();
-    let memory = vm
-        .return_memory(offset, size)
-        .collect::<VMResult<Vec<_>>>()
-        .unwrap();
     assert_eq!(
-        memory,
-        vec![Return::Null, Return::U32(1), Return::Null, Return::U32(3),]
+        vm.unbox(&raw_stack)
+            .next()
+            .unwrap()
+            .unwrap()
+            .as_vec_u32()
+            .unwrap(),
+        &[0, 1, 0, 3, 0,]
     );
 }
 
 #[test]
 #[serial]
-// max mem lsice size value is 2^25-1
+// max vec u32 size value is 2^16/4
 fn test_write_memory_error() {
-    let bytecode = VM::dot2bin("PUSH_U32 0 PUSH_U32 33554432 M_SLICE").unwrap();
+    let bytecode = VM::dot2bin("PUSH_U32 20000 MULI 4 NEW_VEC_U32").unwrap();
     let mut vm = VM::init(bytecode).unwrap();
     let err = vm.run();
     assert!(matches!(err, Err(VMError::MSliceParamOverflow)));
+}
+
+#[test]
+#[serial]
+// mul overflow test
+fn test_mul_overflow() {
+    let bytecode = VM::dot2bin("PUSH_U32 2 PUSH_U32 4294967295 MUL").unwrap();
+    let mut vm = VM::init(bytecode).unwrap();
+    let err = vm.run();
+    assert!(matches!(err, Err(VMError::MultiplicationOverflowed)));
+}
+
+#[test]
+#[serial]
+// mul overflow test
+fn test_muli_overflow() {
+    let bytecode = VM::dot2bin("PUSH_U32 4294967295 MULI 2").unwrap();
+    let mut vm = VM::init(bytecode).unwrap();
+    let err = vm.run();
+    assert!(matches!(err, Err(VMError::MultiplicationOverflowed)));
 }
 
 #[test]
@@ -496,7 +498,7 @@ fn test_conditional_task_filtering() {
     let mut vm = VM::init(bytecode).unwrap();
     let stack = vm.run().unwrap();
     let stack_slice = stack.as_slice();
-    dbg!(&stack);
+    //dbg!(&stack);
     assert_eq!(stack_slice.len(), 0);
 }
 

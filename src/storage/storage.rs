@@ -1,5 +1,5 @@
 use crate::errors::{VMError, VMResult};
-use crate::pools::{InstructionsPool, StringPool};
+use crate::pools::InstructionsPool;
 use crate::storage::bincodec::{Decode, Encode};
 use crate::storage::task_types::{StorageData, TaskVM};
 use std::fs::File;
@@ -20,17 +20,13 @@ pub(crate) struct Storage {
 
 /// storage is NOT thread-safe!
 impl Storage {
-    pub(crate) fn save(
-        &mut self,
-        string_pool: &StringPool,
-        instructions_pool: &InstructionsPool,
-    ) -> VMResult<()> {
+    pub(crate) fn save(&mut self, instructions_pool: &InstructionsPool) -> VMResult<()> {
         let f = File::create("tasks.bin").map_err(|_| VMError::StorageWriteError)?;
         //do we need buffer? values are relatively small
         let mut writer = BufWriter::new(f);
         let mut tasks = Vec::with_capacity(self.alive);
         for task_vm in self.tasks_vm.iter().flatten() {
-            tasks.push(task_vm.to_task(string_pool, instructions_pool)?);
+            tasks.push(task_vm.to_task(instructions_pool)?);
         }
 
         let data = StorageData {
@@ -42,7 +38,7 @@ impl Storage {
         Ok(())
     }
 
-    pub(crate) fn load(pool: &mut StringPool, op_pool: &mut InstructionsPool) -> VMResult<Self> {
+    pub(crate) fn load(op_pool: &mut InstructionsPool) -> VMResult<Self> {
         use std::io::ErrorKind;
         let data: StorageData = match File::open("tasks.bin") {
             Ok(mut file) => StorageData::decode(&mut file)?,
@@ -57,7 +53,7 @@ impl Storage {
         let mut alive = 0;
 
         for t in data.tasks {
-            let task_vm = TaskVM::from_task(t, pool, op_pool)?;
+            let task_vm = TaskVM::from_task(t, op_pool)?;
             let id = task_vm.id as usize;
 
             if tasks_vm.len() <= id {

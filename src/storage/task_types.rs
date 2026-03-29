@@ -1,5 +1,5 @@
 use crate::errors::{VMError, VMResult};
-use crate::pools::{InstructionsPool, StringPool};
+use crate::pools::InstructionsPool;
 
 #[derive(Debug, Clone)]
 pub struct Task {
@@ -12,38 +12,35 @@ pub struct Task {
 #[derive(Debug, Clone)]
 pub(crate) struct TaskVM {
     pub id: u32,
-    pub title: u32,
+    pub title: Vec<u8>,
     pub state: TaskState,
     pub instructions_ref: u32,
 }
 impl TaskVM {
     pub(crate) fn from_task(
         task: Task,
-        strings: &mut StringPool,
         instructions_pool: &mut InstructionsPool,
     ) -> VMResult<Self> {
-        let title_idx = strings.intern_string(task.title);
         let inst_ref = instructions_pool.intern_instructions(task.instructions);
 
         Ok(Self {
             id: task.id,
-            title: title_idx,
+            title: task.title.into_bytes(),
             state: task.state,
             instructions_ref: inst_ref,
         })
     }
-    pub(crate) fn to_task(
-        &self,
-        strings: &StringPool,
-        instructions_pool: &InstructionsPool,
-    ) -> VMResult<Task> {
+    pub(crate) fn to_task(&self, instructions_pool: &InstructionsPool) -> VMResult<Task> {
         let instructions = instructions_pool
             .get(self.instructions_ref as usize)?
             .to_vec();
 
+        let title = std::str::from_utf8(&self.title)
+            .map_err(|_| VMError::BytesToStringConversionError)?
+            .to_string();
         Ok(Task {
             id: self.id,
-            title: strings.resolve(self.title as usize)?.to_string(),
+            title,
             state: self.state,
             instructions,
         })

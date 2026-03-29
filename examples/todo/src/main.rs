@@ -3,8 +3,8 @@ use std::env;
 
 // while it is possible to create tasks with various states, in this example we hardcode 3 possible states
 // basic operations
-const LS: &str = "PUSH_U32 0 S_LEN M_SLICE S_LEN PUSH_U32 0 DO LOOP_INDEX LOOP_INDEX M_STORE LOOP";
-const SHOW: &str = "PUSH_U32 0 S_LEN M_SLICE S_LEN PUSH_U32 0 DO LOOP_INDEX DUP EQ LOOP_INDEX CALL IF LOOP_INDEX LOOP_INDEX M_STORE THEN LOOP";
+const LS: &str = "S_LEN MULI 4 NEW_VEC_U32 S_LEN PUSH_U32 0 DO LOOP_INDEX LOOP_INDEX M_MUTA LOOP";
+const SHOW: &str = "S_LEN MULI 4 NEW_VEC_U32 S_LEN PUSH_U32 0 DO LOOP_INDEX DUP EQ LOOP_INDEX CALL IF LOOP_INDEX LOOP_INDEX M_MUTA THEN LOOP";
 const CREATE_TASK: &str =
     "PUSH_STRING %TITLE% PUSH_MAX_STATES 3 PUSH_CALLDATA [ %INSTRUCTIONS% ] T_CREATE S_SAVE";
 const SET_STATUS: &str =
@@ -123,15 +123,7 @@ fn show(instructions: &str) -> VMResult<()> {
     let mut vm = VM::init(bytecode)?;
 
     let stack = vm.run()?;
-    let (offset, size) = vm.unbox(&stack).next().unwrap()?.as_mem_slice()?;
-
-    let task_ids: Vec<u32> = vm
-        .return_memory(offset, size)
-        .filter_map(|r| match r.unwrap() {
-            Return::U32(val) => Some(val),
-            _ => None,
-        })
-        .collect();
+    let task_ids = vm.unbox(&stack).next().unwrap()?.as_vec_u32()?.to_vec();
 
     println!("\n{:<4} {:<30} {:<15}", "ID", "Title", "Status");
     println!("{}", "─".repeat(50));
