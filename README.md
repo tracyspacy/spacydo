@@ -12,25 +12,25 @@ All stack values are 64-bit (`u64`) Nan-Boxed values encoding 6 distinct types:
 
 | Type | Description |
 |------|-------------|
-| `Null` | absence of value |
 | `TRUE_VAL`, `FALSE_VAL` | boolean true / false |
 | `U32` | unsigned 32-bit integer |
-| `String` | reference into StringPool |
 | `CallData` | reference into InstructionsPool |
-| `MemSlice` | offset (25-bit) + size (25-bit) into scratch memory |
+| `String` | [offset(25 bit) size(16 bit) tag(3 bits)] - fat pointer to a vector of u8 allocated to vm's linear memory  |
+| `VecU32` | [offset (25 bit) size (16 bit) tag (3 bits) - fat pointer to a vector of u32 allocated to vm's linear memory |
 
 See [values.rs](src/values.rs)
 
-#### VM INSTRUCTIONS
+#### VM INSTRUCTIONS (dot - textual representation of the spacydo binary format )
 
 |Type | Instructions |
 |-----|---------------|
 |Stack Operations| `PUSH_U32`, `PUSH_STRING`, `PUSH_CALLDATA`, `PUSH_STATE`, `PUSH_MAX_STATES`, `DUP`, `SWAP`, `DROP`|
 |Task Operations| `T_CREATE`, `T_GET_FIELD`, `T_SET_FIELD`, `T_DELETE`|
 |Storage Operations| `S_SAVE`, `S_LEN`|
-|Memory Operations|`M_SLICE`, `M_STORE`|
+|Memory Operations|`M_STI`, `M_ST`, `M_MUT`|
 |Control Flow| `DO`, `LOOP`, `LOOP_INDEX`, `CALL`, `END_CALL`, `IF..THEN`|
 |Logic operations| `EQ`, `NEQ`, `LT`, `GT`|
+|Arithmetic operations| `MUL`, `MULI`|
 
 **Instruction set with description is here: [opcodes.rs](src/bytecode/opcodes.rs)**
 VM instruction set is intentionally minimal and aiming to remain minimal in a future.
@@ -66,9 +66,9 @@ let bytecode = VM::dot2bin(ops)?;
 /* same without default features:
  let bytecode = vec![
         0x01, 0x00, 0x00, 0x00, 0x02, 0x01, 0x00, 0x00, 0x00, 0x02, 0x16, 0x1A, 0x00, 0x00, 0x00,
-        0x15, 0x01, 0x00, 0x00, 0x00, 0x03, 0x01, 0x00, 0x00, 0x00, 0x04, 0x02, 0x05, 0x48, 0x45,
-        0x4C, 0x4C, 0x4F, 0x01, 0x00, 0x00, 0x00, 0x2A, 0x01, 0x00, 0x00, 0x00, 0x2A, 0x16, 0x04,
-        0x00, 0x06, 0x01, 0x00, 0x00, 0x00, 0x0B, 0x12,];
+        0x15, 0x01, 0x00, 0x00, 0x00, 0x03, 0x01, 0x00, 0x00, 0x00, 0x04, 0x1B, 0x00, 0x05, 0x04,
+        0x01, 0x48, 0x45, 0x4C, 0x4C, 0x4F, 0x01, 0x00, 0x00, 0x00, 0x2A, 0x01, 0x00, 0x00, 0x00,
+        0x2A, 0x16, 0x04, 0x00, 0x06, 0x01, 0x00, 0x00, 0x00, 0x0B, 0x12,];
 */
 // inits vm with instructions
 let mut vm = VM::init(bytecode)?;
@@ -79,49 +79,23 @@ let raw_stack = vm.run()?;
 
 // unboxing raw values returns: 
 // [U32(3), U32(4), String("HELLO"), Bool(true), CallData("PUSH_U32 11 END_CALL")]
-let unboxed_stack = vm.unbox(&stack).collect::<VMResult<Vec<_>>>()?;
+let unboxed_stack = vm.unbox(&raw_stack).collect::<VMResult<Vec<_>>>()?;
 
 // returns 3u32
 let _val:u32 = unboxed_stack[0].as_u32()?;
 
-// returns "PUSH_U32 11 END_CALL"
+// returns [1,0,0,0,11,18,] - Vec<u8>
 let _calldata:&str = unboxed_stack[4].as_calldata()?;
 
 // example with memory write
-let ops_mem =
-        "PUSH_U32 0 PUSH_U32 5 M_SLICE PUSH_U32 5 PUSH_U32 0 DO LOOP_INDEX LOOP_INDEX M_STORE LOOP";
-let bytecode = VM::dot2bin(ops_mem)?;
-let mut vm = VM::init(bytecode)?;
-let raw_stack = vm.run()?;
+let ops_mem = "PUSH_U32 10 MULI 4 NEW_VEC_U32 PUSH_U32 10 PUSH_U32 0 DO LOOP_INDEX LOOP_INDEX M_MUTA LOOP";
+let bytecode = VM::dot2bin(ops_mem).unwrap();
+let mut vm = VM::init(bytecode).unwrap();
+let raw_stack = vm.run().unwrap();
 
-// get memslice offset and size (offset,size) = (0,5,)
-let (offset, size) = vm.unbox(&raw_stack).next().unwrap()?.as_mem_slice()?;
-
-// get values from memory : [0, 1, 2, 3, 4]
-let memory_values: Vec<u32> = vm
-        .return_memory(offset, size)
-        .map(|r| r.unwrap().as_u32().unwrap())
-        .collect();
-
-
-// example with memory write containing Null values
-let ops_mem_null_vals = "PUSH_U32 0 PUSH_U32 5 M_SLICE PUSH_U32 1 PUSH_U32 1 M_STORE PUSH_U32 3 PUSH_U32 3 M_STORE";
-let bytecode = VM::dot2bin(ops_mem_null_vals)?;
-let mut vm = VM::init(bytecode)?;
-let raw_stack = vm.run()?;
-
-// get memslice offset and size (offset,size) = (0,5,)
-let (offset, size) = vm.unbox(&raw_stack).next().unwrap()?.as_mem_slice()?;
-
-// returns  vec![Return::Null, Return::U32(1), Return::Null, Return::U32(3),]
-let memory = vm.return_memory(offset, size).collect::<VMResult<Vec<_>>>()?; 
-
-// returns [1,3]
-let filtered: Vec<u32> = vm.return_memory(offset, size).filter_map(|r| match r.unwrap() {
-            Return::U32(val) => Some(val),
-            _ => None,
-        })
-        .collect();
+let _un = vm.unbox(&stack).next().unwrap().unwrap();
+// get &[u32]
+let vecu32 = _un.as_vec_u32().unwrap();
 
 ```
 
