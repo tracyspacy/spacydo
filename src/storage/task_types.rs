@@ -1,7 +1,6 @@
 use crate::errors::{VMError, VMResult};
-use crate::memory::LinearMemory;
 use crate::pools::InstructionsPool;
-use crate::values::{TAG_STRING, to_fat_pointer};
+
 #[derive(Debug, Clone)]
 pub struct Task {
     pub id: u32,
@@ -13,42 +12,35 @@ pub struct Task {
 #[derive(Debug, Clone)]
 pub(crate) struct TaskVM {
     pub id: u32,
-    pub title: (u32, u16),
+    pub title: Vec<u8>,
     pub state: TaskState,
     pub instructions_ref: u32,
 }
 impl TaskVM {
     pub(crate) fn from_task(
         task: Task,
-        memory: &mut LinearMemory,
         instructions_pool: &mut InstructionsPool,
     ) -> VMResult<Self> {
-        let title = task.title.as_bytes();
-        let (offset, size) =
-            to_fat_pointer(memory.alloc(title.len() as u16, TAG_STRING as u8, title)?)?;
         let inst_ref = instructions_pool.intern_instructions(task.instructions);
 
         Ok(Self {
             id: task.id,
-            title: (offset, size),
+            title: task.title.into_bytes(),
             state: task.state,
             instructions_ref: inst_ref,
         })
     }
-    pub(crate) fn to_task(
-        &self,
-        memory: &LinearMemory,
-        instructions_pool: &InstructionsPool,
-    ) -> VMResult<Task> {
+    pub(crate) fn to_task(&self, instructions_pool: &InstructionsPool) -> VMResult<Task> {
         let instructions = instructions_pool
             .get(self.instructions_ref as usize)?
             .to_vec();
 
+        let title = std::str::from_utf8(&self.title)
+            .map_err(|_| VMError::BytesToStringConversionError)?
+            .to_string();
         Ok(Task {
             id: self.id,
-            title: memory
-                .get_slice_as_str(self.title.0, self.title.1)?
-                .to_string(),
+            title,
             state: self.state,
             instructions,
         })

@@ -41,10 +41,10 @@ impl VM {
         if instructions.is_empty() {
             return Err(VMError::EmptyInstructions);
         }
-        let mut memory = LinearMemory::new();
+        let memory = LinearMemory::new();
         let mut vm_instructions = InstructionsPool::default();
         let program_ref = vm_instructions.intern_instructions(instructions);
-        let storage = Storage::load(&mut memory, &mut vm_instructions)?;
+        let storage = Storage::load(&mut vm_instructions)?;
         let mut call_stack = CallStack::default();
         let call_frame = InstructionsFrame {
             instructions_ref: program_ref,
@@ -64,7 +64,7 @@ impl VM {
 
     pub fn print_task(&self, id: u32) -> VMResult<Task> {
         let task_vm = self.storage.get(id).ok_or(VMError::TaskNotFound(id))?;
-        task_vm.to_task(&self.memory, &self.instructions_pool)
+        task_vm.to_task(&self.instructions_pool)
     }
 
     #[cfg(feature = "dot")]
@@ -85,7 +85,7 @@ impl VM {
 
     pub fn run(&mut self) -> VMResult<Stack> {
         //need to reset linear memory on run! - vm owns memory, lives only between runs
-        //self.memory = LinearMemory::new();
+        self.memory = LinearMemory::new();
 
         let mut instructions_ref = self
             .call_stack
@@ -144,12 +144,13 @@ impl VM {
                     // while should not allow on assembly carefully check, if somehow allows bigger than u8 ->
                     // -> it will trucate 3 msb and leave 1 full ie 255
                     let state = TaskState::default(max_states as u8)?;
-                    let title = to_fat_pointer(self.stack.pop()?)?;
+                    let (offset, size) = to_fat_pointer(self.stack.pop()?)?;
+                    let bytes_vec: Vec<u8> = self.memory.get_slice_bytes(offset, size).into();
                     let id = self.storage.next_id;
 
                     let task = TaskVM {
                         id,
-                        title,
+                        title: bytes_vec,
                         state,
                         instructions_ref,
                     };
@@ -163,9 +164,13 @@ impl VM {
                     let id = to_u32(self.stack.pop()?);
                     let task = &self.storage.get(id).ok_or(VMError::TaskNotFound(id))?;
                     match field {
-                        TaskField::Title => self
-                            .stack
-                            .push(to_string_vec_val(task.title.0, task.title.1)?)?,
+                        TaskField::Title => {
+                            let bytes = task.title.as_slice();
+                            let val =
+                                self.memory
+                                    .alloc(bytes.len() as u16, TAG_STRING as u8, bytes)?;
+                            self.stack.push(val)?
+                        }
                         TaskField::State => {
                             self.stack.push(to_u32_val(task.state.get_state() as u32))?
                         }
@@ -187,7 +192,13 @@ impl VM {
 
                     let task = &mut self.storage.get_mut(id)?;
                     match field {
-                        TaskField::Title => task.title = to_fat_pointer(self.stack.pop()?)?,
+                        TaskField::Title => {
+                            let val = self.stack.pop()?;
+                            let (offset, size) = to_fat_pointer(val)?;
+                            let bytes_vec: Vec<u8> =
+                                self.memory.get_slice_bytes(offset, size).into();
+                            task.title = bytes_vec
+                        }
                         TaskField::State => {
                             let v = to_u32(self.stack.pop()?);
                             task.state.set_state(v)?
@@ -202,7 +213,7 @@ impl VM {
                     let id = to_u32(self.stack.pop()?);
                     self.storage.delete(id)?;
                 }
-                S_SAVE => self.storage.save(&self.memory, &self.instructions_pool)?,
+                S_SAVE => self.storage.save(&self.instructions_pool)?,
                 S_LEN => self.stack.push(to_u32_val(self.storage.len() as u32))?,
 
                 DO => {
@@ -370,7 +381,7 @@ impl VM {
                             .get(task.instructions_ref as usize)?
                             .is_empty()
                         {
-                            let _ = self.call_stack.push(frame);
+                            self.call_stack.push(frame)?;
                             instructions_ref = frame.instructions_ref;
                             instructions = self.instructions_pool.get(instructions_ref as usize)?;
                             pc = frame.pc;
