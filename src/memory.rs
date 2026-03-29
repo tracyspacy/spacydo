@@ -97,13 +97,11 @@ impl LinearMemory {
     ) -> VMResult<&[u32]> {
         let bytes = self.get_slice_bytes(offset, size);
         if !core::mem::size_of_val::<[u8]>(bytes).is_multiple_of(size_of::<u32>()) {
-            //size error
-            return Err(VMError::U8toU32ReinterpetationError);
+            return Err(VMError::SliceSizeMismatch);
         }
         let (prefix, aligned_u32, suffix) = unsafe { bytes.align_to::<u32>() };
         if !prefix.is_empty() || !suffix.is_empty() {
-            // alignment error
-            return Err(VMError::U8toU32ReinterpetationError);
+            return Err(VMError::AlignmentMismatch);
         }
         Ok(aligned_u32)
     }

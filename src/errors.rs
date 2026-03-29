@@ -58,8 +58,10 @@ pub enum VMError {
     },
     BytesToStringConversionError,
     U8toU32ReinterpetationError,
+    AlignmentMismatch,
     // arithmetic errors
     MultiplicationOverflowed,
+    SliceSizeMismatch,
 }
 
 pub type VMResult<T> = Result<T, VMError>;
