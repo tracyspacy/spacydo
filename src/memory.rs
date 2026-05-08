@@ -19,7 +19,7 @@ impl LinearMemory {
     }
 
     //the purpose is to align string and especially vec u32 acorrectly.
-    // it may be string with len 2 before, that will lead to incorrect allignment of vec
+    // it may be string with len 2 before, that will lead to incorrect alignment of vec
     // works: 1-4 => 4 , 5-8 => 8 etc
     // also important to check proposed offset by assembler and not allow to overlay
     fn offset_aligned(&self, tag: u8) -> u32 {

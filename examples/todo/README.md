@@ -11,7 +11,7 @@ This example uses spacydo VM and toml parser for tasks instructions.
 basic commands:
 - **ls**  - list all tasks
 - **show**  - list all tasks & call task's instructions
-- **delete** + **task_id** - delete task from persistant storage `cargo run -- delete 1`
+- **delete** + **task_id** - delete task from persistent storage `cargo run -- delete 1`
 - **status** + **task_id** + **new_status** - update task's status `cargo run -- status 1 complete`  Status options: `complete`, `inprogress`, `notcomplete`  
 - **add** + **title** + **!optional** **-calldata** + **alias** + **parameters** - create task
 example simple task `cargo run -- add Task1`

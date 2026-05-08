@@ -190,7 +190,7 @@ fn test_write_memory() {
     let mut vm = VM::init(bytecode).unwrap();
     let stack = vm.run().unwrap();
     let unboxed = vm.unbox(&stack).collect::<VMResult<Vec<_>>>().unwrap();
-    // since vec u32 -> each elemen u32 == 4 bytes -> 100*4
+    // since vec u32 -> each element u32 == 4 bytes -> 100*4
     let left = unboxed[0].as_vec_u32().unwrap();
     let right: Vec<u32> = (0..100).collect();
     dbg!(&left);
@@ -486,7 +486,7 @@ fn test_invalid_type_lt() {
 
 // complex tests
 
-// Create task with title TargetTask -> Find task by id -> get it's task field 0 (Title) value -> push refference title TargetTask -> Compare string values -> drop task from stack if true
+// Create task with title TargetTask -> Find task by id -> get it's task field 0 (Title) value -> push reference title TargetTask -> Compare string values -> drop task from stack if true
 #[test]
 #[serial]
 fn test_conditional_task_filtering() {

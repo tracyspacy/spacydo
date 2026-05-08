@@ -4,7 +4,7 @@ description = "Creates next task once when another completes. Removes calldata a
 params = ["task_id","next_task_title","own_id"]
 instructions = "PUSH_U32 {{0}} PUSH_TASK_FIELD 1 T_GET_FIELD PUSH_STATE 2 EQ IF PUSH_STRING {{1}} PUSH_MAX_STATES 3 PUSH_CALLDATA [ ] T_CREATE PUSH_CALLDATA [ ] PUSH_U32 {{2}} PUSH_TASK_FIELD 2 T_SET_FIELD S_SAVE THEN END_CALL"
 
-# self_id or next_id is needed again! + OR is much simplier than 2x if
+# self_id or next_id is needed again! + OR is much simpler than 2x if
 [either]
 description = "Set complete if either one or another task is completed + delete not completed task"
 params = ["task_id_1","task_id_2","task_id_own"]
@@ -23,7 +23,7 @@ params = ["task_id"]
 instructions = "PUSH_U32 {{0}} PUSH_TASK_FIELD 1 T_GET_FIELD PUSH_STATE 2 NEQ IF DROP PUSH_U32 0 PUSH_U32 1 EQ THEN END_CALL"
 
 
-# monitor - if task amount > q - appear allert task - too many on table
+# monitor - if task amount > q - appear alert task - too many on table
 #
 
 # requires additional opcodes

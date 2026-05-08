@@ -142,7 +142,7 @@ impl VM {
                     let instructions_ref = to_u32(self.stack.pop()?);
                     let max_states = to_u32(self.stack.pop()?);
                     // while should not allow on assembly carefully check, if somehow allows bigger than u8 ->
-                    // -> it will trucate 3 msb and leave 1 full ie 255
+                    // -> it will truncate 3 msb and leave 1 full ie 255
                     let state = TaskState::default(max_states as u8)?;
                     let (offset, size) = to_fat_pointer(self.stack.pop()?)?;
                     let bytes_vec: Vec<u8> = self.memory.get_slice_bytes(offset, size).into();
@@ -180,7 +180,7 @@ impl VM {
                         }
                     }
                 }
-                //maybe a bit confusing, that value to set to comes firts to be last to pop:
+                //maybe a bit confusing, that value to set to comes first to be last to pop:
                 // PUSH_STATE 2 - push status value, may be PUSH_STRING for title
                 // PUSH_U64 0 - push task id
                 // PUSH_TASK_FIELD 1 - push task field! to change
@@ -257,7 +257,7 @@ impl VM {
                         //dbg!(&val);
                         pc = val as usize;
                     } else {
-                        // skiping jump destination which is u32 ie 4 bytes
+                        // skipping jump destination which is u32 ie 4 bytes
                         pc += 4;
                     }
                 }

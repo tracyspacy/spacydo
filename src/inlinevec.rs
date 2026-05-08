@@ -107,7 +107,7 @@ mod test {
         assert!(matches!(ivec.push(2), Err(VMError::StackOverflow)));
     }
     #[test]
-    fn pop_succes() {
+    fn pop_success() {
         let mut ivec: InlineVec<u64, 5> = InlineVec::new();
         ivec.push(1).unwrap();
         ivec.push(2).unwrap();

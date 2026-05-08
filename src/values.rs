@@ -48,7 +48,7 @@ pub(crate) const FALSE_VAL: Value = QNAN | (TAG_FALSE);
 pub(crate) const TRUE_VAL: Value = QNAN | (TAG_TRUE);
 //pub(crate) const NULL_VAL: Value = QNAN | (TAG_NULL);
 
-// fat poiner to a vec (offset , size)
+// fat pointer to a vec (offset , size)
 #[inline]
 const fn to_vec_val(offset: u32, size: u16, type_tag: u64) -> VMResult<Value> {
     if offset < U25_MAX {
@@ -145,7 +145,7 @@ const fn is_u32_val(v: Value) -> bool {
 
 // u32_val & string_val & calldata_val all u32
 // potentially risky, need to add validation
-// shouldn't be accesible - wrong conversions are possible - ie nan boxed TRUE_VAL and FALSE_VAL both returns 0
+// shouldn't be accessible - wrong conversions are possible - ie nan boxed TRUE_VAL and FALSE_VAL both returns 0
 #[inline]
 pub(crate) const fn to_u32(v: Value) -> u32 {
     ((v >> 18) & 0xffff_ffff) as u32
@@ -219,7 +219,7 @@ pub(crate) fn value_cmp(left: Value, right: Value, is_lt: bool) -> VMResult<Valu
 
 pub(crate) enum ValueType {
     U32,
-    String, // basicaly vec, probably rename
+    String, // basically vec, probably rename
     CallData,
     Bool,
     VecU32,

@@ -14,7 +14,7 @@ DUP - duplicates last() value on stack
 SWAP - Exchange the top two stack items. [1,2] -> [2,1]
 
 ### TASKs
-T_CREATE - pop instructions reference (CallData) -> pop task status -> pop title -> form TaskVM and adds to Storage (without saving to persistant storage).
+T_CREATE - pop instructions reference (CallData) -> pop task status -> pop title -> form TaskVM and adds to Storage (without saving to persistent storage).
 example:  PUSH_STRING TestTask PUSH_STATUS 0 PUSH_CALLDATA [ ] T_CREATE
 
 T_GET_FIELD - pop task field byte -> pop task id -> push task field on stack
@@ -25,7 +25,7 @@ example: PUSH_STATUS 2 PUSH_U32 0 PUSH_TASK_FIELD 1 T_SET_FIELD
 
 T_DELETE - pop task id -> delete task by id from storage
 comment: there is [task0,task1,task2..] - PUSH_U32 1 T_DELETE -> tasks_vm in storage are Vec<Option<TaskVM>> =>
-=> [task0,none,task2] while persistant storage stores only [task0,task1] and next id
+=> [task0,none,task2] while persistent storage stores only [task0,task1] and next id
 
 ### LOGICAL
 EQ - pop right -> pop left -> push True if equal or False if not
@@ -57,7 +57,7 @@ example: PUSH_U32 0 DUP CALL (execute task 0 instructions)
 VM Memory is linear bytes array Vec<u8>, grows dynamically , but technically length is restricted by offset 25 bits -> max addressable offset is 2^25-1= 33_554_431
 each memory slice is represented by nan-boxed vec [offset:25 bits][size:16bits][tag:3]
 where *offset* is starting byte address in linear memory, *size* is number of bytes , *tag* - vector element type (u32,byte)
-M_STI - Memory Store Immediate (following bytes afte opcode: [size:16bits][TAG:8bits][SIGN:8bits][PAYLOAD])- allocates bytes to memory and returns nan-boxed vec_val on stack [offset:25 bits][size:16bits][tag:3]
+M_STI - Memory Store Immediate (following bytes after opcode: [size:16bits][TAG:8bits][SIGN:8bits][PAYLOAD])- allocates bytes to memory and returns nan-boxed vec_val on stack [offset:25 bits][size:16bits][tag:3]
 M_ST - Memory Store (followed only by : [tag:8bits])- allocates empty vec to memory and returns nan-boxed vec_val on stack [offset:25 bits][size:16bits][tag:3]
 M_MUT -Memory Mutate At - mutates memory at address in existing memory slice - takes 3 parameters:  vec, index, value  -> pop value, pop index, peek vec -> writes value at index to memory slice.
 Important, vec[offset:25 bits][size:16bits][tag:3] remains on stack!

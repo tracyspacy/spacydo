@@ -9,7 +9,7 @@ use std::fmt::Write;
 // make configurabe and put in same place with ControlStack and CallStack
 const JUMP_STACK_LIMIT: usize = 2;
 type JumpStack = InlineVec<u32, JUMP_STACK_LIMIT>;
-//replce or import?
+//replace or import?
 const TAG_STRING: u8 = 4;
 const W_PAYLOAD: u8 = 1;
 
