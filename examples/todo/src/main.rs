@@ -1,10 +1,14 @@
-use spacydo::{Return, VM, VMResult};
+use spacydo::{VM, VMResult};
 use std::env;
 
 // while it is possible to create tasks with various states, in this example we hardcode 3 possible states
 // basic operations
 const LS: &str = "S_LEN MULI 4 NEW_VEC_U32 S_LEN PUSH_U32 0 DO LOOP_INDEX LOOP_INDEX M_MUTA LOOP";
-const SHOW: &str = "S_LEN MULI 4 NEW_VEC_U32 S_LEN PUSH_U32 0 DO LOOP_INDEX DUP EQ LOOP_INDEX CALL IF LOOP_INDEX LOOP_INDEX M_MUTA THEN LOOP";
+//prefill with u32::MAX as EMPTY, so to avoid confusion with zero init array in memory (if skipped [0,1,2,0,4] => when 0 could be considerred as valid task)
+const SHOW: &str = "S_LEN MULI 4 NEW_VEC_U32 \
+    S_LEN PUSH_U32 0 DO LOOP_INDEX PUSH_U32 4294967295 M_MUTA LOOP \
+    S_LEN PUSH_U32 0 DO LOOP_INDEX DUP CALL IF LOOP_INDEX LOOP_INDEX M_MUTA THEN LOOP";
+
 const CREATE_TASK: &str =
     "PUSH_STRING %TITLE% PUSH_MAX_STATES 3 PUSH_CALLDATA [ %INSTRUCTIONS% ] T_CREATE S_SAVE";
 const SET_STATUS: &str =
@@ -123,8 +127,9 @@ fn show(instructions: &str) -> VMResult<()> {
     let mut vm = VM::init(bytecode)?;
 
     let stack = vm.run()?;
-    let task_ids = vm.unbox(&stack).next().unwrap()?.as_vec_u32()?.to_vec();
-
+    let mut task_ids = vm.unbox(&stack).next().unwrap()?.as_vec_u32()?.to_vec();
+    // u32 as EMPTY val since memory is 0 initialized
+    task_ids.retain(|&e| e != u32::MAX);
     println!("\n{:<4} {:<30} {:<15}", "ID", "Title", "Status");
     println!("{}", "─".repeat(50));
 
